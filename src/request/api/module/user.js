@@ -3,10 +3,15 @@
  */
 import base from '@/request/api/base'
 import axios from '@/request/http'
+import qs from 'qs'
 
 const user = {
 	test(params) {
 		return axios.post(`${base.dynamicUrl}/user/test`, params)
-	}
+	},
+  detect(params) {
+    return axios.post(`http://192.168.129.140:2234/detect`, params)
+    //return axios.get(`${base.dynamicUrl}/enterpriseCatalog/tagList?${qs.stringify(params)}`)
+  }
 }
 export default user

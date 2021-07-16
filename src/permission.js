@@ -19,8 +19,8 @@ router.beforeEach((to, from, next)=>
   //nprogress
   NProgress.start()
   //获取token
-  let { token } = store.state.user.userInfo
-
+  // let { token } = store.state.user.userInfo
+  let token = 'xx'
   //console.log(24, token)
   if(token){
     let requireAuth = to.matched.some(record => record.meta.requireAuth)

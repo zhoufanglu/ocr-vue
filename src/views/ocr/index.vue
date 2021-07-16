@@ -1,10 +1,21 @@
 <template>
   <div class="p-ocr">
     <div :style="{width:pdf_div_width,margin:'0 auto'}" >
-      <canvas
+      <input id="inputFile" type="file" @change="convertToBase64()" />
+      <button @click="sendAjax">发送请求</button>
+      <button @click="calcSize">计算比例</button>
+<!--      <canvas
           style="border: solid 1px red"
           @click="canvasClick"
-          v-for="page in pdf_pages" :id="'the-canvas'+page" :key="page"></canvas>
+          v-for="page in pdf_pages" :id="'the-canvas'+page" :key="page">
+      </canvas>-->
+      <canvas
+          style="border: solid 1px red"
+          @mousedown="mouseDown"
+          @mousemove="mouseMove"
+          @mouseup="mouseUp"
+          v-for="page in pdf_pages" :id="'the-canvas'+page" :key="page">
+      </canvas>
     </div>
   </div>
 </template>
@@ -13,6 +24,7 @@ import PDFJS from 'pdfjs-dist';
 import workerSrc from 'pdfjs-dist/build/pdf.worker.entry'
 PDFJS.workerSrc = workerSrc;
 //参考 https://www.jianshu.com/p/c4a885e67a74
+import {base64Test} from '@/util/base64PdfTest'
 export default {
   name: '',
   components: {},
@@ -22,10 +34,35 @@ export default {
       pdf_pages:[],
       pdf_div_width:'',
       pdf_src:null,
+      pdfBase64: '',
+      //画布属性
+      canvas: {},
+      context: {},
+      rectList: [], //矩形数组
+      //矩形两个点
+      startX: 0,
+      startY: 0,
+      endX: 0,
+      endY: 0,
+      isDrawing: false, //是否在画中
+      isDragging: false, //是否在拖动中
+      currentRect: {}, //当前选中的矩形
+      color: 'red', //背景颜色
+      //缩放比例大小
+      serverWidth: 3306,
+      serverHeight: 4678,
+      //画布大小
+      canvasWidth: 0,
+      canvasHeight: 0,
+      //比例
+      scaleWidth: 1,
+      scaleHeight: 1
     }
   },
   created() {
     this.get_pdfurl()
+    this.pdfBase64 = base64Test
+    //console.log(33, this.pdfBase64)
     /*
     pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
     let winW = document.documentElement.clientWidth;
@@ -41,13 +78,14 @@ export default {
 
   },
   methods: {
-    get_pdfurl(){  //获得pdf
+    get_pdfurl() {  //获得pdf
       //例子:加载pdf线上示例
-      this.pdf_src = 'https://mozilla.github.io/pdf.js/web/compressed.tracemonkey-pldi-09.pdf'
-      //this.pdf_src = '../../assets/SE_BOOKING_GEN_SHAASCAVAN1000069.pdf'
+      //this.pdf_src = 'https://mozilla.github.io/pdf.js/web/compressed.tracemonkey-pldi-09.pdf'
+      this.pdf_src = '/static/SE_BOOKING_GEN_SHAASCAVAN1000069.pdf'
+      //this.pdf_src = 'https://github.com/zhoufanglu/markdownPhoto/blob/master/test/SE_BOOKING_GEN_SHAASCAVAN1000069.pdf'
       this._loadFile(this.pdf_src)
     },
-    _loadFile (url) {  //初始化pdf
+    _loadFile(url) {  //初始化pdf
       let loadingTask = PDFJS.getDocument(url)
       loadingTask.promise
           .then((pdf) => {
@@ -58,7 +96,7 @@ export default {
             })
           })
     },
-    _renderPage (num) {  //渲染pdf页
+    _renderPage(num) {  //渲染pdf页
       const that = this
       this.pdfDoc.getPage(num)
           .then((page) => {
@@ -71,7 +109,11 @@ export default {
                 ctx.oBackingStorePixelRatio ||
                 ctx.backingStorePixelRatio || 1
             let ratio = dpr / bsr
-            let viewport = page.getViewport({ scale: this.pdf_scale })
+            let viewport = page.getViewport({scale: this.pdf_scale})
+            console.log(85, page)
+
+            this.canvasWidth = viewport.width
+            this.canvasHeight = viewport.height
 
             canvas.width = viewport.width * ratio
             canvas.height = viewport.height * ratio
@@ -91,9 +133,14 @@ export default {
             if (this.pdf_pages > num) {
               this._renderPage(num + 1)
             }
+
+            //赋值
+            this.canvas = canvas
+            this.context = ctx
+
             //画点
             // 设置绘制颜色
-           /* ctx.fillStyle = "#0000FF";
+            /* ctx.fillStyle = "#0000FF";
             // 绘制成矩形
             ctx.fillRect(point.x - 2, point.y - 2, 4, 4);
 
@@ -105,7 +152,9 @@ export default {
     },
 
     canvasClick(e) {
-      console.log(`x:${e.layerX},y:${e.layerY}`)
+      console.log('实际',`x:${e.layerX},y:${e.layerY}`)
+      console.log('计算后',`x:${e.layerX * this.scaleWidth},y:${e.layerY*this.scaleHeight}`)
+      console.log('再次计算后',`x:${e.layerX * this.scaleWidth * 1.433},y:${e.layerY*this.scaleHeight * 0.7}`)
       console.log('----')
       let point = {
         x: e.layerX,
@@ -114,15 +163,190 @@ export default {
       //console.log(107, e.layerX,e.layerY)
       let canvas = document.getElementById('the-canvas1')
       let ctx = canvas.getContext('2d')
-      ctx.fillStyle="#fb0606";
+
+      ctx.fillStyle = "#fb0606";
       //绘制成矩形
       // ctx.arc(point.x, point.y,5, 0, Math.PI * 5);
-      ctx.fillRect(point.x-4,point.y-4,8,8);
+      ctx.fillRect(point.x - 4, point.y - 4, 8, 8);
       //设置字体样式
       ctx.font = "12px bold 宋体";
       //绘制文字
-      ctx.fillText("("+point.x+","+point.y+")",point.x,point.y);
-    }
+      ctx.fillText("(" + point.x + "," + point.y + ")", point.x, point.y);
+    },
+
+    convertToBase64() {
+      //Read File
+      var selectedFile = document.getElementById("inputFile").files;
+      //Check File is not Empty
+      if (selectedFile.length > 0) {
+        // Select the very first file from list
+        var fileToLoad = selectedFile[0];
+        // FileReader function for read the file.
+        var fileReader = new FileReader();
+        var base64;
+        // Onload of file read the file content
+        fileReader.onload = function (fileLoadedEvent) {
+          base64 = fileLoadedEvent.target.result;
+          // Print data in console
+          console.log(base64);
+        };
+        // Convert data to base64
+        fileReader.readAsDataURL(fileToLoad);
+      }
+    },
+
+    async sendAjax() {
+      this.$api.user.detect({basestr: this.pdfBase64})
+    },
+
+    calcSize() {
+      console.log('实际大小', this.canvasWidth, this.canvasHeight)
+      console.log('后端大小', this.serverWidth, this.serverHeight)
+
+      this.scaleWidth =  this.serverWidth/this.canvasWidth
+      this.scaleHeight =  this.serverHeight/this.canvasHeight
+
+      console.log('宽度比', this.scaleWidth)
+      console.log('高度比', this.scaleHeight)
+
+    },
+    /**********************canvas事件***********************/
+    mouseDown(e){
+      this.startX = e.offsetX
+      this.startY = e.offsetY
+      const rectIndex = this.rectList.findIndex(item => {
+        if (item.startX < item.endX) {
+          if (item.startY < item.endY) {
+            return this.startX > item.startX && this.startX < item.endX && this.startY > item.startY && this.startY < item.endY
+          } else {
+            return this.startX > item.startX && this.startX < item.endX && this.startY > item.endY && sthis.tartY < item.startY
+          }
+        } else {
+          if (item.startY < item.endY) {
+            return this.startX > item.endY && this.startX < item.startY && this.startY > item.startY && this.startY < item.endY
+          } else {
+            return this.startX > item.startX && this.startX < item.endX && this.startY > item.endY && this.startY < item.startY
+          }
+        }
+      })
+      if (rectIndex !== -1) {
+        this.currentRect = this.rectList[rectIndex]
+        this.isDragging = true
+        this.currentRect.isSelected = true
+        //undoArray.pop()
+        const tempRectList = this.rectList.slice()
+        const tempCurrentRect = Object.assign({}, this.currentRect)
+        tempRectList.splice(rectIndex, 1, tempCurrentRect)
+        //undoArray.push(tempRectList)
+      } else {
+        this.isDrawing = true
+      }
+    },
+    mouseMove(e){
+      this.endX = e.offsetX
+      this.endY = e.offsetY
+      if (this.isDrawing) {
+        // context.clearRect(0, 0, canvas.width, canvas.height)
+        this.drawRects()
+        this.context.globalAlpha = 0.3
+        this.context.beginPath()
+        this.context.moveTo(this.startX, this.startY)
+        this.context.lineTo(this.endX, this.startY)
+        this.context.lineTo(this.endX, this.endY)
+        this.context.lineTo(this.startX, this.endY)
+        this.context.lineTo(this.startX, this.startY)
+        //this.context.fillStyle = this.color
+        this.context.fillStyle =  'rgba(225,225,225,.01)';
+        //this.context.strokeStyle = 'black'
+        this.context.fill()
+        this.context.stroke()
+      } else if (this.isDragging) {
+        const w = Math.abs(this.startX - this.endX)
+        const h = Math.abs(this.startY - this.endY)
+        if (this.endX < this.startX) {
+          this.startX -= w
+          this.endX -= w
+          this.currentRect.startX -= w
+          this.currentRect.endX -= w
+        }
+        if (this.endX >= this.startX) {
+          this.startX += w
+          this.endX += w
+          this.currentRect.startX += w
+          this.currentRect.endX += w
+        }
+        if (this.endY < sthis.tartY) {
+          this.startY -= h
+          this.endY -= h
+          this.currentRect.startY -= h
+          this.currentRect.endY -= h
+        }
+        if (this.endY >= this.startY) {
+          this.startY += h
+          this.endY += h
+          this.currentRect.startY += h
+          this.currentRect.endY += h
+        }
+        // context.clearRect(0, 0, canvas.width, canvas.height)
+        this.drawRects()
+      }
+    },
+    mouseUp(e){
+      class Rect{
+        constructor(startX, startY, endX, endY, color) {
+          this.startX = startX
+          this.startY = startY
+          this.endX = endX
+          this.endY = endY
+          //this.color = color
+          this.isSelected = false
+        }
+      }
+      if (this.isDrawing) {
+        this.rectList.unshift(new Rect(this.startX, this.startY, this.endX, this.endY, this.color))
+      }
+      if (this.isDragging) {
+        this.rectList.forEach(item => {
+          item.isSelected = false
+        })
+      }
+      /*this.undoArray.push(this.rectList.slice())
+      this.redoArray = []*/
+      this.isDrawing = false
+      this.isDragging = false
+      let {startX, startY, endX, endY} = this.rectList[0]
+      console.log('处理前方块', startX, startY, endX, endY)
+      console.log('处理后方块',
+          '\n',
+          startX * this.scaleWidth * 1.433,
+          startY * this.scaleHeight * 0.7,
+          '\n',
+          endX * this.scaleWidth * 1.433,
+          endY * this.scaleHeight * 0.7
+      )
+    },
+    drawRects() {
+      //this.clearCanvas()
+      for (let i = 0; i < this.rectList.length; i++) {
+        let rect = this.rectList[i]
+        this.context.globalAlpha = 0.3
+        this.context.beginPath()
+        this.context.moveTo(rect.startX, rect.startY)
+        this.context.lineTo(rect.endX, rect.startY)
+        this.context.lineTo(rect.endX, rect.endY)
+        this.context.lineTo(rect.startX, rect.endY)
+        this.context.lineTo(rect.startX, rect.startY)
+        //this.context.fillStyle = rect.color
+        this.context.fill()
+        if (rect.isSelected) {
+          this.context.strokeStyle = 'black'
+          this.context.stroke()
+        }
+      }
+    },
+    clearCanvas() {
+      this.context.clearRect(0, 0, this.canvas.width, this.canvas.height)
+    },
   }
 }
 </script>
