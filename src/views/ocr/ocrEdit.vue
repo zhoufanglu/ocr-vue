@@ -4,39 +4,70 @@
     <div class="edit-toolbar">
       <span class="toolbar-icon-wrap" :class="{'icon_active': isAnchorActive}">
         <el-tooltip class="item" effect="light" content="框选锚点" placement="top">
+          框选锚点
           <el-button><i class="iconfont icon-OCR-circleselect toolbar-icon" @click="drawAnchor"></i></el-button>
         </el-tooltip>
       </span>
       <span class="toolbar-icon-wrap" :class="{'icon_active': isTableActive}" v-if="!setAnchorFlag">
+        框选列表
         <el-tooltip class="item" effect="light" content="框选列表" placement="top">
           <el-button><i class="iconfont icon-OCR-table toolbar-icon" @click="drawTable"></i></el-button>
         </el-tooltip>
       </span>
       <span class="toolbar-icon-wrap" :class="{'icon_active': isdrawActive}">
+        拖拽画布
         <el-tooltip class="item" effect="light" content="拖拽画布" placement="top">
           <el-button><i class="iconfont icon-OCR-drafting toolbar-icon" @click="dragDraw"></i></el-button>
         </el-tooltip>
       </span>
       <span class="toolbar-icon-wrap" :class="{'icon_active': isZoomInActive}">
         <el-tooltip class="item" effect="light" content="放大" placement="top">
+          放大
           <el-button><i class="iconfont icon-Zoomin toolbar-icon" @click="zoomIn"></i></el-button>
         </el-tooltip>
       </span>
       <span class="toolbar-icon-wrap" :class="{'icon_active': isZoomOutActive}">
         <el-tooltip class="item" effect="light" content="缩小" placement="top">
+          缩小
           <el-button><i class="iconfont icon-Zoomout toolbar-icon" @click="zoomOut"></i></el-button>
         </el-tooltip>
       </span>
       <span class="toolbar-icon-wrap" :class="{'icon_active': isAdaptDrawActive}">
+        适应画布
         <el-tooltip class="item" effect="light" content="适应画布" placement="top">
           <el-button><i class="iconfont icon-OCR-autoadaptation toolbar-icon" @click="adaptDraw"></i></el-button>
         </el-tooltip>
       </span>
       <span class="toolbar-icon-wrap" :class="{'icon_active': isSetOriginActive}">
         <el-tooltip class="item" effect="light" content="原图" placement="top">
+          原图
           <el-button><i class="iconfont icon-OCR-test toolbar-icon" @click="setOriginSize"></i></el-button>
         </el-tooltip>
       </span>
+    </div>
+    <div class="panel">
+      <button @click="removeCurRect">删除选中</button>
+      <el-form
+          label-position="left"
+          :inline="true"
+          :model="form"
+          style="width:300px;border: solid 1px red">
+        <el-form-item label="坐标x：">
+          <span>{{form.x}}</span>
+        </el-form-item>
+        <el-form-item label="坐标y：">
+          <span>{{form.y}}</span>
+        </el-form-item>
+        <el-form-item label="宽度：">
+          <span>{{form.width}}</span>
+        </el-form-item>
+        <el-form-item label="高度：">
+          <span>{{form.height}}</span>
+        </el-form-item>
+        <el-form-item label="关键字key：">
+          <el-input v-model="form.key" @input="keyInputChange"></el-input>
+        </el-form-item>
+      </el-form>
     </div>
     <div class="edit-body">
       <div v-if="isLoading" class="init-page-tip">
@@ -64,6 +95,16 @@
 export default {
   data() {
     return {
+      //form
+      form: {
+        key: '',
+        x: 0,
+        y: 0,
+        height: 0,
+        width: 0
+      },
+      //上一次选框的大小
+      prevLength: 0,
       //toolbar
       isAnchorActive: false,
       isTableActive: false,
@@ -124,6 +165,12 @@ export default {
     },
   },
   methods: {
+    removeCurRect() {
+      console.log(136, this.selectId)
+      const index = this.rectList1.findIndex(i=>i.id=== this.selectId)
+      this.rectList1.splice(index, 1)
+      this.reShowRect(0, 0, false, this.selectId, 'revise')
+    },
     mark() {
       this.setAnchorFlag = true
       this.initDrawRect()
@@ -394,13 +441,33 @@ export default {
         if (moveIn && !moved) {
           return this.drawRectWithColor(this.baseInstance, mouseInit.x, mouseInit.y, move.x, move.y, this.selectId)
         }
-
         // 移动编辑操作
         mouseInit = { x: mouse.x, y: mouse.y }
         this.dragRect(moved, mouse.x, mouse.y, move.x, move.y, this.selectId)
       }
 
       this.baseTarget.onmouseup = (e) => {
+        /**********************判断是否是新增，***********************/
+        /*console.log(418, this.rectList1)
+        console.log(421, this.prevLength)*/
+        if(this.prevLength === this.rectList1.length){
+          console.log('修改或者移动操作')
+        }else{
+          console.log('增加操作')
+        }
+        const curChooseRect = this.rectList1.find(i=>i.id===this.selectId)
+        console.log(448, curChooseRect)
+        this.form = {...curChooseRect}
+        this.prevLength = this.rectList1.length
+        /*const index = this.rectList1.findIndex(i=>i.id=== this.selectId)
+        console.log(this.selectId)
+        console.log(421, this.rectList1)
+        if(index === -1){
+          console.log('新增了选框')
+        }else{
+          console.log('修改或者移动了选框')
+        }*/
+        /**********************选框事件***********************/
         moveIn = false
         moved = false
         this.currentCursor = null
@@ -866,6 +933,13 @@ export default {
 
       this.drawTableBorder(this.baseInstance, id)
     },
+    //form操作
+    keyInputChange() {
+      const curIndex = this.rectList1.findIndex(i=>i.id===this.selectId)
+      if(curIndex !== -1){
+        this.rectList1[curIndex].key = this.form.key
+      }
+    }
   },
   mounted() {
     this.$nextTick(() => {

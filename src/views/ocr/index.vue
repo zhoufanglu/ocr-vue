@@ -25,6 +25,8 @@ import workerSrc from 'pdfjs-dist/build/pdf.worker.entry'
 PDFJS.workerSrc = workerSrc;
 //参考 https://www.jianshu.com/p/c4a885e67a74
 import {base64Test} from '@/util/base64PdfTest'
+import {pyJson} from './pyJson'
+
 export default {
   name: '',
   components: {},
@@ -75,13 +77,17 @@ export default {
   },
 
   mounted() {
-
   },
   methods: {
     get_pdfurl() {  //获得pdf
       //例子:加载pdf线上示例
       //this.pdf_src = 'https://mozilla.github.io/pdf.js/web/compressed.tracemonkey-pldi-09.pdf'
+      //嘉里大通
       this.pdf_src = '/static/SE_BOOKING_GEN_SHAASCAVAN1000069.pdf'
+      //日托
+      //this.pdf_src = '/static/BOOKING 11-26.pdf'
+      //船期
+      //this.pdf_src = '/static/Weekly Vessel Arrangement -- AUS NZ M.East IPak Red Sea Seagull-- 2020 W10 -- Version 4 0.pdf'
       //this.pdf_src = 'https://github.com/zhoufanglu/markdownPhoto/blob/master/test/SE_BOOKING_GEN_SHAASCAVAN1000069.pdf'
       this._loadFile(this.pdf_src)
     },
@@ -137,6 +143,12 @@ export default {
             //赋值
             this.canvas = canvas
             this.context = ctx
+            setTimeout(()=>{
+              this.loadCanvasByPy()
+            }, 1000)
+            //test
+            this.calcSize()
+
 
             //画点
             // 设置绘制颜色
@@ -315,15 +327,40 @@ export default {
       this.isDrawing = false
       this.isDragging = false
       let {startX, startY, endX, endY} = this.rectList[0]
+      /**********************找出pyJson内的值***********************/
+      const startPoint = [startX * this.scaleWidth * 1.433, startY * this.scaleHeight * 0.7]
+      const endPoint = [endX * this.scaleWidth * 1.433, endY * this.scaleHeight * 0.7]
       console.log('处理前方块', startX, startY, endX, endY)
       console.log('处理后方块',
           '\n',
-          startX * this.scaleWidth * 1.433,
-          startY * this.scaleHeight * 0.7,
+          startPoint,
           '\n',
-          endX * this.scaleWidth * 1.433,
-          endY * this.scaleHeight * 0.7
+          endPoint
       )
+      this.findValByRect(startPoint, endPoint)
+    },
+    //找出圈选内的值
+    findValByRect(start, end) {
+      //找出与python列表差不多区间的范围的值
+      const offSet = 50 //偏移量
+      const findObj = pyJson[0].data.find(i=>{
+        const pyPos = i.text_box_position
+        //比较第一个与第三个点 pyPos[0], pyPos[2]
+        if(
+            //匹配第一个
+            (Math.abs(pyPos[0][0] - start[0]) < offSet &&
+             Math.abs(pyPos[0][1] - start[1])  < offSet)
+            &&
+            //匹配第三个
+            (Math.abs(pyPos[2][0] - end[0]) < offSet &&
+             Math.abs(pyPos[2][1] - end[1])  < offSet)
+        ){
+          console.log(343, pyPos[0][0], start[0])
+          console.log(343, pyPos[0][0] - start[0])
+          return i
+        }
+      })
+      console.log(348, findObj)
     },
     drawRects() {
       //this.clearCanvas()
@@ -347,6 +384,29 @@ export default {
     clearCanvas() {
       this.context.clearRect(0, 0, this.canvas.width, this.canvas.height)
     },
+    //数据反填
+    loadCanvasByPy() {
+      //console.log(385, this.context)
+      //this.context.strokeRect(50, 20, 120, 100)
+      //通过后端给的点，计算出前端渲染的矩形
+      pyJson[0].data.forEach(i=>{
+        const pos = i.text_box_position
+        //x: pos[0][0], y: pos[0][1] ,值都除以5.5
+
+        const width = (this.pyParseFront(pos[2][0], 'x') - this.pyParseFront(pos[0][0], 'x'))
+        const height = (this.pyParseFront(pos[2][1], 'y') - this.pyParseFront(pos[0][1], 'y'))
+        const x = this.pyParseFront(pos[0][0], 'x')
+        const y = this.pyParseFront(pos[0][1], 'y')
+        //console.log(width, height)
+        this.context.strokeRect(x, y, width, height)
+      })
+    },
+    //数据解析, 后端转前端
+    pyParseFront(val, cate) {
+      const itemScale = cate === 'x' ? 1.433 : 0.71
+      const areaScale = cate === 'x' ? this.scaleWidth : this.scaleHeight
+      return val/areaScale/itemScale
+    }
   }
 }
 </script>
