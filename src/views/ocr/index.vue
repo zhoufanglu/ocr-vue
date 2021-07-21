@@ -22,7 +22,7 @@
 <script>
 import PDFJS from 'pdfjs-dist';
 import workerSrc from 'pdfjs-dist/build/pdf.worker.entry'
-PDFJS.workerSrc = workerSrc;
+//PDFJS.workerSrc = workerSrc;
 //参考 https://www.jianshu.com/p/c4a885e67a74
 import {base64Test} from '@/util/base64PdfTest'
 import {pyJson} from './pyJson'

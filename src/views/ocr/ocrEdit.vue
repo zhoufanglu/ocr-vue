@@ -75,7 +75,20 @@
         <p>模板加载中，请稍后</p>
       </div>
       <div class="canvas-wrapper" ref='canvasWrapper'>
-        <canvas width="1000" height="700" ref="baseCanvas" class='canvas'></canvas>
+        <!--作为背景的canvas-->
+        <canvas
+            class="bg-canvas"
+            style="border: solid 1px red"
+            v-for="page in pdf_pages"
+            :id="'the-canvas'+page" :key="page">
+        </canvas>
+        <!--实际操作的canvas-->
+        <canvas
+            style="border: solid 1px green"
+            width="1000px"
+            height="1000px"
+             ref="baseCanvas" class='canvas'>
+        </canvas>
       </div>
     </div>
     <el-dialog title="请选择分割列数" :visible.sync="tableVisible" width="30%">
@@ -92,9 +105,16 @@
 </template>
 
 <script>
+import PDFJS from 'pdfjs-dist'
+import workerSrc from 'pdfjs-dist/build/pdf.worker.entry'
+
 export default {
   data() {
     return {
+      //渲染PDF
+      pdf_pages: 0,
+      pdfWidth: 0,
+      pdfHeight: 0,
       //form
       form: {
         key: '',
@@ -133,7 +153,7 @@ export default {
       currentScaleVal: 1,
       circlsRadius: 2,
       step: 0.05000,
-      minSelectArea: 15,
+      minSelectArea: 5,
       imgWidth: 0,
       imgHeight: 0,
       imgBase64Code: 0,
@@ -165,6 +185,20 @@ export default {
     },
   },
   methods: {
+    loadPdfCanvas() {
+      const url = '/static/SE_BOOKING_GEN_SHAASCAVAN1000069.pdf'
+      let loadingTask = PDFJS.getDocument(url)
+      loadingTask.promise
+          .then((pdf) => {
+            this.pdfDoc = pdf
+            this.pdf_pages = this.pdfDoc.numPages
+            this.$nextTick(() => {
+              //这边pdf就一页，默认为1页
+              this._renderPage(1)
+            })
+          })
+    },
+
     removeCurRect() {
       console.log(136, this.selectId)
       const index = this.rectList1.findIndex(i=>i.id=== this.selectId)
@@ -328,10 +362,63 @@ export default {
       this.wrapperTarget.style.width = `${this.movePoint.width}px`
       this.wrapperTarget.style.height = `${this.movePoint.height}px`
     },
-    setCanvas() {
+    /*setCanvas() {
       this.baseTarget.width = this.movePoint.width
       this.baseTarget.height = this.movePoint.height
+    },*/
+    _renderPage(num) {  //渲染pdf页
+      const that = this
+      this.pdfDoc.getPage(num)
+          .then((page) => {
+            let canvas = document.getElementById('the-canvas' + num)
+            let ctx = canvas.getContext('2d')
+            let dpr = window.devicePixelRatio || 1
+            let bsr = ctx.webkitBackingStorePixelRatio ||
+                ctx.mozBackingStorePixelRatio ||
+                ctx.msBackingStorePixelRatio ||
+                ctx.oBackingStorePixelRatio ||
+                ctx.backingStorePixelRatio || 1
+            let ratio = dpr / bsr
+            let viewport = page.getViewport({scale: 1}) //缩放默认为1
+            console.log(85, page)
+
+            canvas.width = viewport.width * ratio
+            canvas.height = viewport.height * ratio
+            //存储Pdf原始大小
+            this.pdfWidth = canvas.width
+            this.pdfHeight = canvas.height
+            //初始化圈选canvas大小
+            this.baseTarget.width = canvas.width
+            this.baseTarget.height = canvas.height
+
+            this.movePoint = {
+              height: canvas.height,
+              width: canvas.width,
+              x:0,
+              y: 0
+            }
+
+            /*this.wrapperTarget.style.width = canvas.width
+            this.wrapperTarget.style.height = canvas.height*/
+
+            canvas.style.width = viewport.width + 'px'
+
+            that.pdf_div_width = viewport.width + 'px'
+
+            canvas.style.height = viewport.height + 'px'
+
+            ctx.setTransform(ratio, 0, 0, ratio, 0, 0)
+            let renderContext = {
+              canvasContext: ctx,
+              viewport: viewport
+            }
+            page.render(renderContext)
+            if (this.pdf_pages > num) {
+              this._renderPage(num + 1)
+            }
+          })
     },
+
     throttle(fn, time = 10) {
       let timer = null
       return (...args) => {
@@ -355,23 +442,28 @@ export default {
 
     // 画布操作
     drawCanvas(moveX = 0, moveY = 0) {
-      const [width, height] = [this.imgWidth * this.currentScaleVal, this.imgHeight * this.currentScaleVal]
-
-      const img = new Image()
+      //const [width, height] = [this.imgWidth * this.currentScaleVal, this.imgHeight * this.currentScaleVal]
+      this.movePoint = {
+        height: 500,
+        width: 500,
+        x:0,
+        y: 0
+      }
+      //this.setWrapper()
+      //this.setCanvas()
+      this.initDrawRect()
+      /*const img = new Image()
       img.onload = () => {
-        [this.movePoint.x, this.movePoint.y] = this.isdrawActive ?
+        /!*[this.movePoint.x, this.movePoint.y] = this.isdrawActive ?
             [this.movePoint.x + moveX, this.movePoint.y + moveY] :
             [(this.drawWidth - width) / 2, (this.drawHeight - height) / 2];
         [this.movePoint.width, this.movePoint.height] = [width, height]
+        console.log(446, this.movePoint)*!/
+        //this.baseTarget.style.backgroundImage = `url(${img.src})`
+        //this.baseTarget.style.backgroundSize = `${width}px ${height}px`
 
-        this.setWrapper()
-        this.setCanvas()
-
-        this.baseTarget.style.backgroundImage = `url(${img.src})`
-        this.baseTarget.style.backgroundSize = `${width}px ${height}px`
-        this.initDrawRect()
       }
-      img.src = this.imgBase64Code
+      img.src = this.imgBase64Code*/
     },
     dragCanvas() {
       let [moveIn, mouseInit, mouse, move] = [false, {}, {}, {}]
@@ -938,11 +1030,13 @@ export default {
       const curIndex = this.rectList1.findIndex(i=>i.id===this.selectId)
       if(curIndex !== -1){
         this.rectList1[curIndex].key = this.form.key
+        this.rectList1[curIndex].isHasKey = 0
       }
     }
   },
   mounted() {
     this.$nextTick(() => {
+      this.loadPdfCanvas()
       this.initDraw()
     })
   },
@@ -978,7 +1072,8 @@ export default {
     }
   }
   .edit-body {
-    height: 720px;
+    height: 1000px;
+    width: 100%;
     padding: 10px 0;
     box-sizing: border-box;
     background-color: white;
@@ -998,11 +1093,16 @@ export default {
     }
     .canvas-wrapper {
       width: 1000px;
-      height: 700px;
+      height: 1000px;
       position: absolute;
       top: 0;
       left: 0;
       .canvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+      }
+      .bg-canvas{
         position: absolute;
         top: 0;
         left: 0;
