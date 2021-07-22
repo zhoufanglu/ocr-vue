@@ -12,6 +12,13 @@ const user = {
   detect(params) {
     return axios.post(`http://192.168.129.140:2234/detect`, params)
     //return axios.get(`${base.dynamicUrl}/enterpriseCatalog/tagList?${qs.stringify(params)}`)
+  },
+  detectLocal(params) {
+    return axios.post(`http://192.168.9.45:2233/detect`, params)
+    //return axios.get(`http://192.168.9.45:2233/detect?${qs.stringify(params)}`)
+  },
+  flaskTest(params) {
+    return axios.post(`http://192.168.9.45:2233/detect`, params)
   }
 }
 export default user

@@ -1,7 +1,8 @@
 <!--https://blog.csdn.net/lucky541788/article/details/103619561-->
 <template>
   <div class="edit-anchor-zone">
-    <div class="edit-toolbar">
+
+<!--    <div class="edit-toolbar">
       <span class="toolbar-icon-wrap" :class="{'icon_active': isAnchorActive}">
         <el-tooltip class="item" effect="light" content="框选锚点" placement="top">
           框选锚点
@@ -45,13 +46,16 @@
         </el-tooltip>
       </span>
     </div>
+    -->
     <div class="panel">
       <button @click="removeCurRect">删除选中</button>
-      <el-form
+      <button @click="submit">提交所有圈选</button>
+<!--      <el-form
           label-position="left"
           :inline="true"
           :model="form"
           style="width:300px;border: solid 1px red">
+        <h4>当前选中项</h4>
         <el-form-item label="坐标x：">
           <span>{{form.x}}</span>
         </el-form-item>
@@ -67,28 +71,63 @@
         <el-form-item label="关键字key：">
           <el-input v-model="form.key" @input="keyInputChange"></el-input>
         </el-form-item>
-      </el-form>
+      </el-form>-->
     </div>
     <div class="edit-body">
-      <div v-if="isLoading" class="init-page-tip">
+<!--      <div v-if="isLoading" class="init-page-tip">
         <i class="el-icon-loading"></i>
         <p>模板加载中，请稍后</p>
-      </div>
+      </div>-->
       <div class="canvas-wrapper" ref='canvasWrapper'>
-        <!--作为背景的canvas-->
+        <!--作为背景的canvas，有pdf,有后端传来的框选 -->
         <canvas
             class="bg-canvas"
             style="border: solid 1px red"
             v-for="page in pdf_pages"
             :id="'the-canvas'+page" :key="page">
         </canvas>
-        <!--实际操作的canvas-->
+        <!--实际操作的canvas, 做圈选操作-->
         <canvas
             style="border: solid 1px green"
             width="1000px"
             height="1000px"
              ref="baseCanvas" class='canvas'>
         </canvas>
+      </div>
+      <div class="rect-panel">
+        <div v-for="i in rectList1"
+             :key="i.id"
+             class="item"
+             @click="rightItemClick(i.id)"
+             :class="curRectId===i.id?'item-active':''"
+        >
+          <el-form :inline="false" :model="i" class="demo-form-inline">
+            <el-form-item label="key" required>
+              <el-input v-model="i.key"></el-input>
+            </el-form-item>
+            <el-form-item label="x">
+              <span>{{i.x}}</span>
+            </el-form-item>
+            <el-form-item label="y">
+              <span>{{i.y}}</span>
+            </el-form-item>
+            <el-form-item label="宽度">
+              <span>{{i.width}}</span>
+            </el-form-item>
+            <el-form-item label="高度">
+              <span>{{i.height}}</span>
+            </el-form-item>
+            <el-form-item label="是否包含key">
+              <el-select v-model="i.isHasKey">
+                <el-option label="包含key" :value="1"></el-option>
+                <el-option label="不包含key" :value="0"></el-option>
+              </el-select>
+            </el-form-item>
+            <el-form-item>
+              <el-button type="primary" @click="submitOnly(i)">识别选中区域</el-button>
+            </el-form-item>
+          </el-form>
+        </div>
       </div>
     </div>
     <el-dialog title="请选择分割列数" :visible.sync="tableVisible" width="30%">
@@ -97,20 +136,24 @@
         </div>
       </div>
     </el-dialog>
-    <div style="margin-top:20px;">
+<!--    <div style="margin-top:20px;">
       <el-button @click="mark">标记</el-button>
       <el-button @click="target">目标</el-button>
-    </div>
+    </div>-->
   </div>
 </template>
 
 <script>
 import PDFJS from 'pdfjs-dist'
 import workerSrc from 'pdfjs-dist/build/pdf.worker.entry'
+import {base64Test} from '../../util/base64PdfTest'
+import {pyJson} from './pyJson'
 
 export default {
   data() {
     return {
+      //当前选中的选框id
+      curRectId: 0,
       //渲染PDF
       pdf_pages: 0,
       pdfWidth: 0,
@@ -185,6 +228,68 @@ export default {
     },
   },
   methods: {
+    /**********************加载和点击事件***********************/
+    async detectPdf() {
+      const res = await this.$api.user.detectLocal({
+        pdfBase: base64Test
+      })
+      setTimeout(()=>{
+        this.loadCanvasByPy(res.data)
+      },1000)
+    },
+    //根据json渲染区域
+    loadCanvasByPy(res) {
+      console.log(235, res)
+      const canvas = document.getElementById('the-canvas1')
+      let ctx = canvas.getContext('2d')
+      console.log(238, ctx)
+      res.data.forEach(i=>{
+        const pos = i.text_box_position
+        //x: pos[0][0], y: pos[0][1] ,值都除以5.5
+
+        const width = (this.pyParseFront(pos[2][0], 'x') - this.pyParseFront(pos[0][0], 'x'))
+        const height = (this.pyParseFront(pos[2][1], 'y') - this.pyParseFront(pos[0][1], 'y'))
+        const x = this.pyParseFront(pos[0][0], 'x')
+        const y = this.pyParseFront(pos[0][1], 'y')
+        //console.log(width, height)
+        ctx.strokeStyle = '#666'
+        ctx.setLineDash([5,2])
+        //ctx.globalAlpha  = 0.5
+        ctx.strokeRect(x, y, width, height)
+      })
+    },
+    //数据解析, 后端转前端
+    pyParseFront(val, cate) {
+      const itemScale = cate === 'x' ? 1.433 : 0.71
+      const areaScale =  5.553726338706752
+      return val/areaScale/itemScale
+    },
+    //前端转后端
+    frontParsePy(val, cate) {
+      const itemScale = cate === 'x' ? 1.433 : 0.71
+      const areaScale =  5.553726338706752
+      return val*areaScale*itemScale
+    },
+    submit() {
+      console.log(225, this.rectList1)
+    },
+    submitOnly(i) {
+      const params = {
+        key: i.key,
+        isHasKey: i.isHasKey,
+        x: this.frontParsePy(i.x, 'x'),
+        y: this.frontParsePy(i.y, 'y'),
+        width: this.frontParsePy(i.width, 'x'),
+        height: this.frontParsePy(i.height, 'y')
+      }
+      console.log(283, params)
+    },
+    rightItemClick(id) {
+      this.curRectId = id
+      this.selectId = id
+      this.reShowRect(0, 0, false, this.selectId, 'revise')
+    },
+    /**********************canvas事件***********************/
     loadPdfCanvas() {
       const url = '/static/SE_BOOKING_GEN_SHAASCAVAN1000069.pdf'
       let loadingTask = PDFJS.getDocument(url)
@@ -217,9 +322,9 @@ export default {
     },
     initDraw(data) {
       this.isLoading = false;
-      this.imgWidth = 1913;
+      /*this.imgWidth = 1913;
       this.imgHeight = 1122;
-      this.imgBase64Code = 'https://timgsa.baidu.com/timg?image&quality=80&size=b9999_10000&sec=1576560618051&di=b89a65984c6a0e5c4c8a3de5aa8f0fcd&imgtype=0&src=http%3A%2F%2Fimage.biaobaiju.com%2Fuploads%2F20180803%2F20%2F1533300579-gnUBlQZPbt.jpg'
+      this.imgBase64Code = 'https://timgsa.baidu.com/timg?image&quality=80&size=b9999_10000&sec=1576560618051&di=b89a65984c6a0e5c4c8a3de5aa8f0fcd&imgtype=0&src=http%3A%2F%2Fimage.biaobaiju.com%2Fuploads%2F20180803%2F20%2F1533300579-gnUBlQZPbt.jpg'*/
 
       this.baseTarget = this.$refs.baseCanvas
       this.wrapperTarget = this.$refs.canvasWrapper
@@ -390,6 +495,8 @@ export default {
             //初始化圈选canvas大小
             this.baseTarget.width = canvas.width
             this.baseTarget.height = canvas.height
+            this.baseTarget.style.width = viewport.width + 'px'
+            this.baseTarget.style.height = viewport.height + 'px'
 
             this.movePoint = {
               height: canvas.height,
@@ -549,8 +656,11 @@ export default {
         }
         const curChooseRect = this.rectList1.find(i=>i.id===this.selectId)
         console.log(448, curChooseRect)
-        this.form = {...curChooseRect}
-        this.prevLength = this.rectList1.length
+        if(curChooseRect){
+          this.curRectId = curChooseRect.id
+          this.form = {...curChooseRect}
+          this.prevLength = this.rectList1.length
+        }
         /*const index = this.rectList1.findIndex(i=>i.id=== this.selectId)
         console.log(this.selectId)
         console.log(421, this.rectList1)
@@ -582,7 +692,10 @@ export default {
     drawRectWithColor(instance, x, y, width, height, id) {
       instance.clearRect(0, 0, this.movePoint.width, this.movePoint.height);
       this.initDrawRect();
-      (this.setAnchorFlag ? this.rectList1 : this.rectList2)[id] = { x, y, width, height, id }
+      //初始化，增加两个值，key, 是否包含key
+      const key = '', isHasKey = 0;
+
+      (this.setAnchorFlag ? this.rectList1 : this.rectList2)[id] = { x, y, width, height, id, key, isHasKey }
     },
     drawRectBorder(instance, id) {
       instance.clearRect(0, 0, this.movePoint.width, this.movePoint.height);
@@ -1038,6 +1151,8 @@ export default {
     this.$nextTick(() => {
       this.loadPdfCanvas()
       this.initDraw()
+      //接口解析pdf,然后在canvas画出
+      this.detectPdf()
     })
   },
 }
@@ -1045,7 +1160,7 @@ export default {
 
 <style lang='scss' scoped>
 .edit-anchor-zone {
-  width: 1000px;
+  width: 100%;
   .edit-toolbar {
     height: 60px;
     background-color: #565559;
@@ -1079,6 +1194,7 @@ export default {
     background-color: white;
     position: relative;
     overflow: hidden;
+    display: flex;
     .init-page-tip {
       position: absolute;
       top: 40%;
@@ -1092,11 +1208,13 @@ export default {
       }
     }
     .canvas-wrapper {
-      width: 1000px;
-      height: 1000px;
-      position: absolute;
+      width: 100%;
+      height: 100%;
+      /*width: 1000px;
+      height: 1000px;*/
+      /*position: absolute;
       top: 0;
-      left: 0;
+      left: 0;*/
       .canvas {
         position: absolute;
         top: 0;
@@ -1106,6 +1224,21 @@ export default {
         position: absolute;
         top: 0;
         left: 0;
+      }
+    }
+
+    .rect-panel{
+      border: solid 1px red;
+      //padding: 20px;
+      padding: 20px 40px 20px 20px;
+      overflow-y: auto;
+      .item{
+        padding: 10px;
+        box-shadow:#eeeeee 0 0 10px;//四周
+        width: 300px;
+      }
+      .item-active {
+        box-shadow: rgb(157, 41, 42) 0 0 10px;//四周
       }
     }
   }
