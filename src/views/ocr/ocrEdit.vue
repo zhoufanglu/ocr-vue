@@ -94,9 +94,12 @@
              ref="baseCanvas" class='canvas'>
         </canvas>
       </div>
-      <div class="rect-panel">
-        <div v-for="i in rectList1"
+      <div class="rect-panel"
+        ref="checkPanel"
+      >
+        <div v-for="(i, index) in rectList1"
              :key="i.id"
+             :id="'rect'+i.id"
              class="item"
              @click="rightItemClick(i.id)"
              :class="curRectId===i.id?'item-active':''"
@@ -105,7 +108,7 @@
             <el-form-item label="key" required>
               <el-input v-model="i.key"></el-input>
             </el-form-item>
-            <el-form-item label="x">
+<!--            <el-form-item label="x">
               <span>{{i.x}}</span>
             </el-form-item>
             <el-form-item label="y">
@@ -116,15 +119,16 @@
             </el-form-item>
             <el-form-item label="高度">
               <span>{{i.height}}</span>
-            </el-form-item>
-            <el-form-item label="是否包含key">
+            </el-form-item>-->
+            <el-form-item label="选中是否包含key">
               <el-select v-model="i.isHasKey">
                 <el-option label="包含key" :value="1"></el-option>
                 <el-option label="不包含key" :value="0"></el-option>
               </el-select>
             </el-form-item>
             <el-form-item>
-              <el-button type="primary" @click="submitOnly(i)">识别选中区域</el-button>
+              <el-button type="primary" @click="submitOnly(i, index)">识别选中区域</el-button>
+              <div :class="i.text?'item-text':''"> {{i.text}}</div>
             </el-form-item>
           </el-form>
         </div>
@@ -273,7 +277,7 @@ export default {
     submit() {
       console.log(225, this.rectList1)
     },
-    submitOnly(i) {
+    async submitOnly(i,index) {
       const params = {
         key: i.key,
         isHasKey: i.isHasKey,
@@ -282,7 +286,10 @@ export default {
         width: this.frontParsePy(i.width, 'x'),
         height: this.frontParsePy(i.height, 'y')
       }
-      console.log(283, params)
+      const res = await this.$api.user.boxInfo(params)
+      console.log(283, res.data.text)
+      console.log(288, this.rectList1[index])
+      this.rectList1[index].text = res.data.text
     },
     rightItemClick(id) {
       this.curRectId = id
@@ -334,12 +341,12 @@ export default {
       this.drawAnchor();
     },
     computeInitData() {
-      let widthRatio = (this.drawWidth / this.imgWidth).toPrecision(5),
-          heightRatio = (this.drawHeight / this.imgHeight).toPrecision(5);
+      /*let widthRatio = (this.drawWidth / this.imgWidth).toPrecision(5),
+          heightRatio = (this.drawHeight / this.imgHeight).toPrecision(5);*/
 
       this.baseInstance = this.baseTarget.getContext('2d')
 
-      this.initScaleVal = this.currentScaleVal = widthRatio >= heightRatio ? heightRatio : widthRatio;
+      /*this.initScaleVal = this.currentScaleVal = widthRatio >= heightRatio ? heightRatio : widthRatio;
       if (this.initScaleVal < 0.10) {
         this.initScaleVal = 0.10;
         this.currentScaleVal = 0.10;
@@ -352,7 +359,7 @@ export default {
         this.circlsRadius = 2;
       } else {
         this.circlsRadius = 4;
-      }
+      }*/
     },
     zoomIn() {
       this.setToolBarUnactive();
@@ -485,7 +492,11 @@ export default {
                 ctx.backingStorePixelRatio || 1
             let ratio = dpr / bsr
             let viewport = page.getViewport({scale: 1}) //缩放默认为1
-            console.log(85, page)
+            //radio会根据屏幕变化而变化，这里默认设置1
+            //ratio = 1
+            //默认的pdf实际大小
+            let defaultPdfWidth = viewport.width
+            let defaultPdfHeight = viewport.height
 
             canvas.width = viewport.width * ratio
             canvas.height = viewport.height * ratio
@@ -493,10 +504,14 @@ export default {
             this.pdfWidth = canvas.width
             this.pdfHeight = canvas.height
             //初始化圈选canvas大小
-            this.baseTarget.width = canvas.width
-            this.baseTarget.height = canvas.height
-            this.baseTarget.style.width = viewport.width + 'px'
-            this.baseTarget.style.height = viewport.height + 'px'
+            this.baseTarget.width = defaultPdfWidth
+            this.baseTarget.height = defaultPdfHeight
+            this.baseTarget.style.width = defaultPdfWidth + 'px'
+            this.baseTarget.style.height = defaultPdfHeight + 'px'
+            console.log(504, canvas.width, canvas.height)
+            //初始化右侧选择框高度
+            console.log(513, this.$refs.checkPanel)
+            this.$refs.checkPanel.style.height = defaultPdfHeight + 'px'
 
             this.movePoint = {
               height: canvas.height,
@@ -504,6 +519,7 @@ export default {
               x:0,
               y: 0
             }
+            console.log(511, this.movePoint)
 
             /*this.wrapperTarget.style.width = canvas.width
             this.wrapperTarget.style.height = canvas.height*/
@@ -627,6 +643,7 @@ export default {
 
       this.baseTarget.onmousedown = (e) => {
         mouseInit = { x: e.offsetX, y: e.offsetY }
+        console.log(634, mouseInit)
         this.selectId = (this.setAnchorFlag ? this.rectList1 : this.rectList2).length
         moveIn = true
         moved = this.getSelectRect(mouseInit)
@@ -674,6 +691,12 @@ export default {
         moved = false
         this.currentCursor = null
         this.reShowRect(0, 0, moved, this.selectId, 'revise')
+        //锚记链接
+        this.$nextTick(()=>{
+          if(curChooseRect){
+            document.getElementById('rect'+ this.curRectId).scrollIntoView()
+          }
+        })
       }
     },
     getSelectRect(mouse) {
@@ -693,9 +716,9 @@ export default {
       instance.clearRect(0, 0, this.movePoint.width, this.movePoint.height);
       this.initDrawRect();
       //初始化，增加两个值，key, 是否包含key
-      const key = '', isHasKey = 0;
+      const key = '', isHasKey = 0, text = '';
 
-      (this.setAnchorFlag ? this.rectList1 : this.rectList2)[id] = { x, y, width, height, id, key, isHasKey }
+      (this.setAnchorFlag ? this.rectList1 : this.rectList2)[id] = { x, y, width, height, id, key, isHasKey, text }
     },
     drawRectBorder(instance, id) {
       instance.clearRect(0, 0, this.movePoint.width, this.movePoint.height);
@@ -1187,9 +1210,9 @@ export default {
     }
   }
   .edit-body {
-    height: 1000px;
+    //height: 1000px;
     width: 100%;
-    padding: 10px 0;
+    //padding: 10px 0;
     box-sizing: border-box;
     background-color: white;
     position: relative;
@@ -1208,27 +1231,24 @@ export default {
       }
     }
     .canvas-wrapper {
-      width: 100%;
-      height: 100%;
-      /*width: 1000px;
-      height: 1000px;*/
-      /*position: absolute;
-      top: 0;
-      left: 0;*/
+      /*width: 100%;
+      height: 100%;*/
+      position: relative;
       .canvas {
         position: absolute;
         top: 0;
         left: 0;
       }
       .bg-canvas{
-        position: absolute;
+        /*position: absolute;
         top: 0;
-        left: 0;
+        left: 0;*/
       }
     }
 
     .rect-panel{
       border: solid 1px red;
+      box-sizing: border-box;
       //padding: 20px;
       padding: 20px 40px 20px 20px;
       overflow-y: auto;
@@ -1238,7 +1258,11 @@ export default {
         width: 300px;
       }
       .item-active {
-        box-shadow: rgb(157, 41, 42) 0 0 10px;//四周
+        box-shadow: $theme 0 0 10px;//四周
+      }
+      .item-text{
+        overflow: auto;
+        border: solid 1px $theme;
       }
     }
   }

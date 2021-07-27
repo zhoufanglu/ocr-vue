@@ -8,6 +8,7 @@ import module_2 from '@/router/module/module_2'
 
 const ocr = () => import('@/views/ocr/index.vue')
 const ocrEdit = () => import('@/views/ocr/ocrEdit.vue')
+const ocrBackup = () => import('@/views/ocr/ocr-back-up.vue')
 
 
 Vue.use(VueRouter)
@@ -33,6 +34,14 @@ const constantRoutes = [
     path: '/ocrEdit',
     name: 'ocrEdit',
     component: ocrEdit,
+    meta: {
+      requireAuth: false // 在需要登录的路由的meta中添加响应的权限标识
+    }
+  },
+  {
+    path: '/ocrBackup',
+    name: 'ocrBackup',
+    component: ocrBackup,
     meta: {
       requireAuth: false // 在需要登录的路由的meta中添加响应的权限标识
     }

@@ -17,8 +17,8 @@ const user = {
     return axios.post(`http://192.168.9.45:2233/detect`, params)
     //return axios.get(`http://192.168.9.45:2233/detect?${qs.stringify(params)}`)
   },
-  flaskTest(params) {
-    return axios.post(`http://192.168.9.45:2233/detect`, params)
-  }
+  boxInfo(params) {
+    return axios.post(`http://192.168.9.45:2233/boxInfo`, params)
+  },
 }
 export default user
