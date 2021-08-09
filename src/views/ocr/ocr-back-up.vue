@@ -112,7 +112,7 @@ export default {
   methods: {
     /**********************加载和点击事件***********************/
     async detectPdf() {
-      const res = await this.$api.user.detectLocal({
+      const res = await this.$api.discern.detectLocal({
         pdfBase: base64Test
       })
       setTimeout(()=>{
@@ -164,7 +164,7 @@ export default {
         width: this.frontParsePy(i.width, 'x'),
         height: this.frontParsePy(i.height, 'y')
       }
-      const res = await this.$api.user.boxInfo(params)
+      const res = await this.$api.discern.boxInfo(params)
       console.log(283, res.data.text)
       console.log(288, this.rectList1[index])
       this.rectList1[index].text = res.data.text
@@ -332,7 +332,6 @@ export default {
 
     // 画布操作
     drawCanvas(moveX = 0, moveY = 0) {
-      //const [width, height] = [this.imgWidth * this.currentScaleVal, this.imgHeight * this.currentScaleVal]
       this.movePoint = {
         height: 500,
         width: 500,

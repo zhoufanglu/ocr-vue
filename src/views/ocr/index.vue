@@ -83,11 +83,11 @@ export default {
       //例子:加载pdf线上示例
       //this.pdf_src = 'https://mozilla.github.io/pdf.js/web/compressed.tracemonkey-pldi-09.pdf'
       //嘉里大通
-      this.pdf_src = '/static/SE_BOOKING_GEN_SHAASCAVAN1000069.pdf'
+      //this.pdf_src = '/static/SE_BOOKING_GEN_SHAASCAVAN1000069.pdf'
       //日托
       //this.pdf_src = '/static/BOOKING 11-26.pdf'
       //船期
-      //this.pdf_src = '/static/Weekly Vessel Arrangement -- AUS NZ M.East IPak Red Sea Seagull-- 2020 W10 -- Version 4 0.pdf'
+      this.pdf_src = '/static/Weekly Vessel Arrangement -- AUS NZ M.East IPak Red Sea Seagull-- 2020 W10 -- Version 4 0.pdf'
       //this.pdf_src = 'https://github.com/zhoufanglu/markdownPhoto/blob/master/test/SE_BOOKING_GEN_SHAASCAVAN1000069.pdf'
       this._loadFile(this.pdf_src)
     },
@@ -208,7 +208,7 @@ export default {
     },
 
     async sendAjax() {
-      this.$api.user.detect({basestr: this.pdfBase64})
+      this.$api.discern.detect({basestr: this.pdfBase64})
     },
 
     calcSize() {

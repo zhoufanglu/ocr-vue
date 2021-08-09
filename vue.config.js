@@ -53,8 +53,8 @@ module.exports = {
   },
   devServer: {
     port: 8080,
-    host: "0.0.0.0",
-    //public: "192.168.5.148:8080",
+    //host: "0.0.0.0",
+    public: "192.168.5.148:8080",
     https: false,
     // 自动启动浏览器
     open: false,

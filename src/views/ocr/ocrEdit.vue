@@ -1,7 +1,9 @@
 <!--https://blog.csdn.net/lucky541788/article/details/103619561-->
 <template>
   <div class="edit-anchor-zone">
+    <sideBar></sideBar>
     <div class="panel">
+      <input id="inputFile" type="file" @change="convertToBase64()" />
       <button @click="removeCurRect">删除选中</button>
       <button @click="submit">提交所有圈选</button>
     </div>
@@ -55,13 +57,19 @@
 
 <script>
 import PDFJS from 'pdfjs-dist'
+
+import sideBar from './components/sideBar'
 import workerSrc from 'pdfjs-dist/build/pdf.worker.entry'
 import {base64Test} from '../../util/base64PdfTest'
 import {pyJson} from './pyJson'
 
 export default {
+  components: {sideBar},
   data() {
     return {
+      scaleWidth: 0, //canvas宽度比
+      scaleHeight: 0, //canvas高度比
+      pdfResData: [],//后端pdf解析的数据
       //当前选中的选框id
       curRectId: 0,
       //渲染PDF
@@ -111,14 +119,48 @@ export default {
   },
   methods: {
     /**********************加载和点击事件***********************/
-    async detectPdf() {
-      const res = await this.$api.user.detectLocal({
+    convertToBase64() {
+      //Read File
+      var selectedFile = document.getElementById("inputFile").files;
+      //Check File is not Empty
+      if (selectedFile.length > 0) {
+        // Select the very first file from list
+        var fileToLoad = selectedFile[0];
+        // FileReader function for read the file.
+        var fileReader = new FileReader();
+        var base64;
+        // Onload of file read the file content
+        const _this = this
+        fileReader.onload =  async function (fileLoadedEvent) {
+          base64 = fileLoadedEvent.target.result;
+          // Print data in console
+          //console.log(129, base64.split(',')[1]);
+          const {data} = await _this.$api.discern.testUpload({
+            /*"bizId": "offline_CarrierBooking_v1",
+            "fileType": "pdf",
+            "contentType": "FORMWORK",*/
+            base64: base64.split(',')[1],
+          })
+          _this.pdfResData = data.reqData
+          _this.loadPdfCanvas()
+          /*setTimeout(()=>{
+            _this.loadCanvasByPy(data.reqData)
+          }, 1000)*/
+          //console.log(137, data.reqData)
+        };
+        // Convert data to base64
+        fileReader.readAsDataURL(fileToLoad);
+      }
+    },
+    //在base canvas上画圈选
+    /*async detectPdf() {
+      const res = await this.$api.discern.detectLocal({
         pdfBase: base64Test
       })
       setTimeout(()=>{
         this.loadCanvasByPy(res.data)
       },1000)
-    },
+    },*/
     //根据json渲染区域
     loadCanvasByPy(res) {
       console.log(235, res)
@@ -140,22 +182,58 @@ export default {
         ctx.strokeRect(x, y, width, height)
       })
     },
+    //获取上传的pdf的url
+    /*async getPdfUrl() {
+      const res = await this.$api.discern.testDown()
+    },*/
     //数据解析, 后端转前端
     pyParseFront(val, cate) {
       const itemScale = cate === 'x' ? 1.433 : 0.71
-      const areaScale =  5.553726338706752
+      const areaScale = cate === 'x' ? this.scaleWidth : this.scaleHeight
       return val/areaScale/itemScale
     },
     //前端转后端
     frontParsePy(val, cate) {
       const itemScale = cate === 'x' ? 1.433 : 0.71
-      const areaScale =  5.553726338706752
+      const areaScale = cate === 'x' ? this.scaleWidth : this.scaleHeight
       return val*areaScale*itemScale
     },
-    submit() {
-      console.log(225, this.rectList1)
+    async submit() {
+      //初始化参数
+      let tempList = JSON.parse(JSON.stringify(this.rectList1))
+      //判断是否有未填写的key，填上
+      const findIndex = tempList.findIndex(i=>i.key==='')
+      if(findIndex !== -1){
+        this.selectId = tempList[findIndex].id
+        this.curRectId = tempList[findIndex].id
+        this.$message.error('请填写key')
+        return false
+      }
+
+      const sbList = tempList.reduce((prev, cur, index, arr) => {
+        const temp = {
+          key: cur.key,
+          isHasKey: cur.isHasKey,
+          x: this.frontParsePy(cur.x, 'x'),
+          y: this.frontParsePy(cur.y, 'y'),
+          width: this.frontParsePy(cur.width, 'x'),
+          height: this.frontParsePy(cur.height, 'y')
+        }
+        prev.push(temp)
+        return prev
+      }, [])
+      //进行识别赋值
+      const {data} = await this.$api.discern.testUploadExcute({sblist: sbList})
+      //数据反填
+      data.reqData.dataList.forEach((i, index)=>{
+        this.rectList1[index].text = i.text
+      })
     },
     async submitOnly(i,index) {
+      if(!i.key){
+        this.$message.error('请填写Key！')
+        return false
+      }
       const params = {
         key: i.key,
         isHasKey: i.isHasKey,
@@ -164,10 +242,9 @@ export default {
         width: this.frontParsePy(i.width, 'x'),
         height: this.frontParsePy(i.height, 'y')
       }
-      const res = await this.$api.user.boxInfo(params)
-      console.log(283, res.data.text)
-      console.log(288, this.rectList1[index])
-      this.rectList1[index].text = res.data.text
+      //const res = await this.$api.discern.boxInfo(params)
+      const {data} = await this.$api.discern.testUploadExcute({sblist: [params]})
+      this.rectList1[index].text = data.reqData.dataList[0].text
     },
     rightItemClick(id) {
       this.curRectId = id
@@ -176,7 +253,8 @@ export default {
     },
     /**********************canvas事件***********************/
     loadPdfCanvas() {
-      const url = '/static/SE_BOOKING_GEN_SHAASCAVAN1000069.pdf'
+      //const url = '/static/SE_BOOKING_GEN_SHAASCAVAN1000069.pdf'
+      const url = 'http://192.168.129.192:9099/ocr/test/down'
       let loadingTask = PDFJS.getDocument(url)
       loadingTask.promise
           .then((pdf) => {
@@ -275,9 +353,9 @@ export default {
             this.baseTarget.height = defaultPdfHeight
             this.baseTarget.style.width = defaultPdfWidth + 'px'
             this.baseTarget.style.height = defaultPdfHeight + 'px'
-            console.log(504, canvas.width, canvas.height)
+            //console.log(504, canvas.width, canvas.height)
             //初始化右侧选择框高度
-            console.log(513, this.$refs.checkPanel)
+            //console.log(513, this.$refs.checkPanel)
             this.$refs.checkPanel.style.height = defaultPdfHeight + 'px'
 
             this.movePoint = {
@@ -286,7 +364,7 @@ export default {
               x:0,
               y: 0
             }
-            console.log(511, this.movePoint)
+            //console.log(511, this.movePoint)
 
             /*this.wrapperTarget.style.width = canvas.width
             this.wrapperTarget.style.height = canvas.height*/
@@ -302,7 +380,15 @@ export default {
               canvasContext: ctx,
               viewport: viewport
             }
-            page.render(renderContext)
+            page.render(renderContext).promise.then(()=>{
+              console.log('pdf渲染完成')
+              //计算宽高比
+              this.scaleWidth =  this.pdfResData.shape[0]/defaultPdfWidth
+              this.scaleHeight =  this.pdfResData.shape[1]/defaultPdfHeight
+              console.log(384, this.scaleWidth, this.scaleHeight)
+              //然后进行选框
+              this.loadCanvasByPy(this.pdfResData)
+            })
             if (this.pdf_pages > num) {
               this._renderPage(num + 1)
             }
@@ -629,7 +715,7 @@ export default {
             item.id = index
           })
           break
-      };
+      }
 
       this.drawRectBorder(this.baseInstance, id)
     },
@@ -645,10 +731,12 @@ export default {
   },
   mounted() {
     this.$nextTick(() => {
-      this.loadPdfCanvas()
+      //加载初始化背景的canvas
+      //this.loadPdfCanvas()
+      //初始化可以画画的canvas
       this.initDraw()
-      //接口解析pdf,然后在canvas画出
-      this.detectPdf()
+      //接口解析pdf,然后在背景canvas画出辅助线选框
+      //this.detectPdf()
     })
   },
 }
@@ -657,7 +745,11 @@ export default {
 <style lang='scss' scoped>
 .edit-anchor-zone {
   width: 100%;
+  .panel{
+    margin-left: 100px;
+  }
   .edit-body {
+    margin-left: 100px;
     //height: 1000px;
     width: 100%;
     //padding: 10px 0;
