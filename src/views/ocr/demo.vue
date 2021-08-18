@@ -1,5 +1,12 @@
 <template>
   <div class="edit-anchor-zone">
+    <div class="panel">
+      <el-button type="primary" size="mini" @click="$router.push('/discernPdf')">去识别Pdf</el-button>
+      <input id="inputFile" type="file" @change="convertToBase64()" />
+      <button @click="removeCurRect">删除选中</button>
+      <button @click="submitAll">提交所有圈选</button>
+      <button @click="testCalc">测试计算</button>
+    </div>
     <div class="edit-toolbar">
       <span class="toolbar-icon-wrap" :class="{'icon_active': isAnchorActive}">
         <el-tooltip class="item" effect="light" content="框选锚点" placement="top">
@@ -43,26 +50,166 @@
         <p>模板加载中，请稍后</p>
       </div>
       <div class="canvas-wrapper" ref='canvasWrapper'>
-        <canvas width="1000" height="700" ref="baseCanvas" class='canvas'></canvas>
+        <!--作为背景的canvas，有pdf,有后端传来的框选 -->
+<!--        <canvas
+            class="bg-canvas"
+            style="border: solid 1px red"
+            v-for="page in pdf_pages"
+            :id="'bg-canvas'+page" :key="page">
+        </canvas>-->
+        <!--暂时就做一页-->
+        <canvas
+            class="bg-canvas"
+            style="border: solid 1px red"
+            id="bg-canvas1"
+            >
+        </canvas>
+        <!--实际操作的canvas, 做圈选操作-->
+        <canvas
+            width="1000" height="700"
+                ref="operateCanvas"
+            class='operate-canvas'>
+        </canvas>
+      </div>
+      <!--右侧选框绑定内容-->
+      <div class="rect-panel"
+           ref="checkPanel"
+      >
+        <!--圈选方块-->
+        <div class="rect-column">
+          <h4>圈选的方块</h4>
+          <div v-for="(i, index) in rectList2"
+               :key="i.id"
+               :id="'rect'+i.id"
+               class="item"
+               @click="rightItemClick(i.id, 'rect')"
+               :class="curRectId===i.id?'item-active':''"
+          >
+            <el-form :inline="false" :model="i" class="demo-form-inline">
+              <el-form-item :label="'key' +'-'+ i.id" required>
+                <el-input v-model="i.key"></el-input>
+              </el-form-item>
+              <!--辅助信息-->
+<!--              <el-form-item label="x">
+                <span>{{i.x}}</span>
+              </el-form-item>
+              <el-form-item label="y">
+                <span>{{i.y}}</span>
+              </el-form-item>
+              <el-form-item label="宽度">
+                <span>{{i.width}}</span>
+              </el-form-item>
+              <el-form-item label="高度">
+                <span>{{i.height}}</span>
+              </el-form-item>-->
+              <!--辅助信息-->
+              <el-form-item label="选中是否包含key">
+                <el-select v-model="i.isHasKey">
+                  <el-option label="包含key" :value="1"></el-option>
+                  <el-option label="不包含key" :value="0"></el-option>
+                </el-select>
+              </el-form-item>
+              <el-form-item>
+                <el-button type="primary" @click="submitOnly(i, index, 'rect')">识别选中区域</el-button>
+                <div :class="i.text?'item-text':''"> {{i.text}}</div>
+              </el-form-item>
+            </el-form>
+          </div>
+        </div>
+        <!--圈选列表-->
+        <div class="table-column">
+          <h4>圈选列表</h4>
+          <div v-for="(i, index) in tableList"
+               :key="i.id"
+               :id="'table'+i.id"
+               class="item"
+               @click="rightItemClick(i.id, 'table')"
+               :class="curTableId===i.id?'item-active':''"
+          >
+            <el-form :inline="false" :model="i" class="demo-form-inline">
+              <el-form-item :label="'表名(key)' + i.id" required>
+                <el-input v-model="i.key"></el-input>
+              </el-form-item>
+              <!--辅助信息-->
+<!--              <el-form-item label="x">
+                <span>{{i.x}}</span>
+              </el-form-item>
+              <el-form-item label="y">
+                <span>{{i.y}}</span>
+              </el-form-item>
+              <el-form-item label="宽度">
+                <span>{{i.width}}</span>
+              </el-form-item>
+              <el-form-item label="高度">
+                <span>{{i.height}}</span>
+              </el-form-item>-->
+              <!--辅助信息-->
+              <el-form-item label="表格最大行数">
+                <el-input-number v-model="i.maxRows" :min="1" :max="50"></el-input-number>
+              </el-form-item>
+              <el-form-item>
+                <div v-for="(col, colIndex) in i.columnList">
+                  <label>第{{colIndex+1}}列的key为:</label>
+                  <span style="display:inline-block; width: 100px">
+                    <el-input
+                        @input="colChange"
+                        size="small"
+                        v-model="col.key">
+                    </el-input>
+                  </span>
+                </div>
+              </el-form-item>
+              <el-form-item>
+                <el-button type="primary" @click="submitOnly(i, index, 'table')">识别选中区域</el-button>
+                <div :class="i.text?'item-text':''"> {{i.text}}</div>
+              </el-form-item>
+            </el-form>
+          </div>
+        </div>
       </div>
     </div>
     <el-dialog title="请选择分割列数" :visible.sync="tableVisible" width="30%">
       <div class="select-wrapper">
-        <div class="select">列数： <el-input-number v-model="tableCol" :min="2" :max="10" size='small'></el-input-number>
+        <div class="select">列数： <el-input-number v-model="tableCol" :min="2" :max="20" size='small'></el-input-number>
         </div>
+        <el-button @click="tableVisible=false" style="margin-top: 20px;">确定</el-button>
       </div>
     </el-dialog>
-    <div style="margin-top:20px;">
+<!--    <div style="margin-top:20px;">
       <el-button @click="mark">标记</el-button>
       <el-button @click="target">目标</el-button>
-    </div>
+    </div>-->
   </div>
 </template>
 
 <script>
+import PDFJS from 'pdfjs-dist'
+import workerSrc from 'pdfjs-dist/build/pdf.worker.entry'
+
 export default {
   data() {
     return {
+      pdfBase: null,
+      scaleWidth: 0, //canvas宽度比
+      scaleHeight: 0, //canvas高度比
+      pdfResData: [],//后端pdf解析的数据
+      //当前选中的选框id
+      curRectId: 0,
+      curTableId: 0,
+      //渲染PDF
+      pdf_pages: 0,
+      pdfWidth: 0,
+      pdfHeight: 0,
+      //form
+      form: {
+        key: '',
+        x: 0,
+        y: 0,
+        height: 0,
+        width: 0
+      },
+      //上一次选框的大小
+      prevLength: 0,
       //toolbar
       isAnchorActive: false,
       isTableActive: false,
@@ -106,7 +253,7 @@ export default {
       tableCol: 2,
       color1: '#FF7782',
       color2: '#1E82FD',
-      color3: '#4b1efd',
+      color3: 'rgba(125,96,220,0.8)',
       opacity: 0.3,
       lineWidth: 2,
     }
@@ -120,9 +267,396 @@ export default {
     },
     tableList: function (newVal, oldVal) {
       console.log('tableList: ', newVal)
+      /*console.log('tableList: ', JSON.stringify(newVal))
+      */
+      //增加columnList
+      this.tableList.forEach(i=>{
+        //判断数据有无初始化过,没有 就增加centerLineListTemp属性，反之更新数值
+        if(false){
+          console.log('初始化，计算数值')
+          //为分割线，增加首尾两条线,增加新的centerLineListTemp
+          i.centerLineListTemp = [...i.centerLineList]
+          i.centerLineListTemp.unshift(0)
+          i.centerLineListTemp.push(1)
+          i.columnList = []
+          const centerLineList = i.centerLineListTemp
+          let widthCale = 0 //每块的宽度占比
+          centerLineList.forEach((line,lineIndex)=>{
+            if(lineIndex!==centerLineList.length-1){
+              //当前块的宽度比例为后面一个减前面一个
+              widthCale = i.centerLineListTemp[lineIndex+1] - line
+              //为列表增加columnList，里面有每块的x,y,width,height,key
+              //console.log(281, widthCale)
+              i.columnList.push({
+                width: i.width * widthCale,
+                height: i.height,
+                y: i.y,
+                key: ''
+              })
+            }
+          })
+          //计算出偏移量x的值, 计算方法为，当前点 加上前面宽的的和,还要加上x默认的偏移量
+          i.columnList.forEach((col,colIndex)=>{
+            const defaultX = i.x
+            if(colIndex === 0){
+              col.x = defaultX
+            }else{
+              let x = defaultX
+              for(let j=0;j<colIndex;j++){
+                x += i.columnList[j].width
+              }
+              console.log(304, x)
+              col.x = x
+            }
+          })
+        }
+      })
+      //this.tableList = newVal
+      //console.log(287, newVal)
+      /**********************给当前的columnList的属性计算出来***********************/
+      let curTableItem = this.tableList.find(i=>i.id === this.curTableId)
+      /*const findIndex = this.tableList.findIndex(i=>i.id === this.curTableId)
+      let curTableItem = this.deepCopy(this.tableList[findIndex])*/
+      console.log('当前方框的属性', curTableItem)
+      //增加centerLineListTemp属性，包含0 跟 1的线
+      curTableItem.centerLineListTemp = [...curTableItem.centerLineList]
+      curTableItem.centerLineListTemp.unshift(0)
+      curTableItem.centerLineListTemp.push(1)
+      /*if(!curTableItem.hasOwnProperty('centerLineListTemp')){
+        curTableItem.centerLineListTemp = [...curTableItem.centerLineList]
+        curTableItem.centerLineListTemp.unshift(0)
+        curTableItem.centerLineListTemp.push(1)
+      }*/
+      //计算width, height, y
+      const centerLineList = curTableItem.centerLineListTemp
+      let widthCale = 0 //每块的宽度占比
+      centerLineList.forEach((line,lineIndex)=>{
+        if(lineIndex!==centerLineList.length-1){
+          //当前块的宽度比例为后面一个减前面一个
+          widthCale = curTableItem.centerLineListTemp[lineIndex+1] - line
+          //为列表增加columnList，里面有每块的x,y,width,height,key
+          //console.log(281, widthCale)
+          curTableItem.columnList[lineIndex] =
+              Object.assign(
+                  curTableItem.columnList[lineIndex],
+                  {
+                    width: curTableItem.width * widthCale,
+                    height: curTableItem.height,
+                    y: curTableItem.y,
+                  })
+          //计算出偏移量x的值, 计算方法为，当前点 加上前面宽的的和,还要加上x默认的偏移量
+          curTableItem.columnList.forEach((col,colIndex)=>{
+            const defaultX = curTableItem.x
+            if(colIndex === 0){
+              col.x = defaultX
+            }else{
+              let x = defaultX
+              for(let j=0;j<colIndex;j++){
+                x += curTableItem.columnList[j].width
+              }
+              col.x = x
+            }
+          })
+          console.log(355, curTableItem)
+        }
+      })
+      //this.tableList[findIndex] = this.deepCopy(curTableItem)
+      console.log(360, this.tableList)
     },
   },
   methods: {
+    /**********************加载和点击事件***********************/
+    convertToBase64() {
+      //Read File
+      var selectedFile = document.getElementById("inputFile").files;
+      //Check File is not Empty
+      if (selectedFile.length > 0) {
+        // Select the very first file from list
+        var fileToLoad = selectedFile[0];
+        // FileReader function for read the file.
+        var fileReader = new FileReader();
+        var base64;
+        // Onload of file read the file content
+        const _this = this
+        fileReader.onload =  async function (fileLoadedEvent) {
+          base64 = fileLoadedEvent.target.result;
+          // Print data in console
+          //console.log(129, base64.split(',')[1]);
+          //testUpload detect
+          const {data} = await _this.$api.discern.detect({
+            /*"bizId": "offline_CarrierBooking_v1",
+            "fileType": "pdf",
+            "contentType": "FORMWORK",*/
+            pdfBase: base64.split(',')[1],
+          })
+          _this.pdfBase = base64.split(',')[1]
+          _this.pdfResData = data
+          _this.loadPdfCanvas(base64)
+          /*setTimeout(()=>{
+            _this.loadCanvasByPy(data.reqData)
+          }, 1000)*/
+          //console.log(137, data.reqData)
+        };
+        // Convert data to base64
+        fileReader.readAsDataURL(fileToLoad);
+      }
+    },
+    loadPdfCanvas(base64) {
+      //const url = '/static/SE_BOOKING_GEN_SHAASCAVAN1000069.pdf'
+      //const url = 'http://192.168.129.192:9099/ocr/test/down'
+      //let loadingTask = PDFJS.getDocument(url)
+      let loadingTask = PDFJS.getDocument({data: window.atob(this.pdfBase)})
+      loadingTask.promise
+          .then((pdf) => {
+            this.pdfDoc = pdf
+            this.pdf_pages = this.pdfDoc.numPages
+            this.$nextTick(() => {
+              //这边pdf就一页，默认为1页
+              this._renderPage(1)
+            })
+          })
+    },
+    _renderPage(num) {  //渲染pdf页
+      const that = this
+      this.pdfDoc.getPage(num)
+          .then((page) => {
+            let canvas = document.getElementById('bg-canvas' + num)
+            let ctx = canvas.getContext('2d')
+            let dpr = window.devicePixelRatio || 1
+            let bsr = ctx.webkitBackingStorePixelRatio ||
+                ctx.mozBackingStorePixelRatio ||
+                ctx.msBackingStorePixelRatio ||
+                ctx.oBackingStorePixelRatio ||
+                ctx.backingStorePixelRatio || 1
+            let ratio = dpr / bsr
+            let viewport = page.getViewport({scale: 1}) //缩放默认为1
+            //radio会根据屏幕变化而变化，这里默认设置1
+            //ratio = 1
+            //默认的pdf实际大小
+            let defaultPdfWidth = viewport.width
+            let defaultPdfHeight = viewport.height
+
+            //初始化外面容器宽度大小，由于定位，已经脱离了文档流
+            this.wrapperTarget.style.width = `${defaultPdfWidth+10}px`
+            this.wrapperTarget.style.height = `${defaultPdfHeight+10}px`
+
+            canvas.width = viewport.width * ratio
+            canvas.height = viewport.height * ratio
+            //存储Pdf原始大小
+            this.pdfWidth = canvas.width
+            this.pdfHeight = canvas.height
+            //初始化圈选canvas大小
+            this.baseTarget.width = defaultPdfWidth
+            this.baseTarget.height = defaultPdfHeight
+            this.baseTarget.style.width = defaultPdfWidth + 'px'
+            this.baseTarget.style.height = defaultPdfHeight + 'px'
+            //console.log(504, canvas.width, canvas.height)
+            //初始化右侧选择框高度
+            //console.log(513, this.$refs.checkPanel)
+            this.$refs.checkPanel.style.height = defaultPdfHeight + 'px'
+
+            this.movePoint = {
+              height: canvas.height,
+              width: canvas.width,
+              x:0,
+              y: 0
+            }
+            //console.log(511, this.movePoint)
+
+            /*this.wrapperTarget.style.width = canvas.width
+            this.wrapperTarget.style.height = canvas.height*/
+
+            canvas.style.width = viewport.width + 'px'
+
+            that.pdf_div_width = viewport.width + 'px'
+
+            canvas.style.height = viewport.height + 'px'
+
+            ctx.setTransform(ratio, 0, 0, ratio, 0, 0)
+            let renderContext = {
+              canvasContext: ctx,
+              viewport: viewport
+            }
+            page.render(renderContext).promise.then(()=>{
+              console.log('pdf渲染完成')
+              //计算宽高比
+              this.scaleWidth =  this.pdfResData.shape[0]/defaultPdfWidth
+              this.scaleHeight =  this.pdfResData.shape[1]/defaultPdfHeight
+              console.log(384, this.scaleWidth, this.scaleHeight)
+              //然后进行选框
+              this.loadCanvasByPy(this.pdfResData)
+            })
+            if (this.pdf_pages > num) {
+              this._renderPage(num + 1)
+            }
+          })
+    },
+    //根据json渲染区域
+    loadCanvasByPy(res) {
+      console.log(235, res)
+      const canvas = document.getElementById('bg-canvas1')
+      let ctx = canvas.getContext('2d')
+      console.log(238, ctx)
+      res.data.forEach(i=>{
+        const pos = i.text_box_position
+        //x: pos[0][0], y: pos[0][1] ,值都除以5.5
+
+        const width = (this.pyParseFront(pos[2][0], 'x') - this.pyParseFront(pos[0][0], 'x'))
+        const height = (this.pyParseFront(pos[2][1], 'y') - this.pyParseFront(pos[0][1], 'y'))
+        const x = this.pyParseFront(pos[0][0], 'x')
+        const y = this.pyParseFront(pos[0][1], 'y')
+        //console.log(width, height)
+        ctx.strokeStyle = '#666'
+        ctx.setLineDash([5,2])
+        //ctx.globalAlpha  = 0.5
+        ctx.strokeRect(x, y, width, height)
+      })
+    },
+    //提交所有
+    async submitAll() {
+      if (this.rectList2.length === 0 && this.tableList.length === 0) {
+        this.$message.error('请先圈选后进行保存')
+        return false
+      }
+      const {data} = await this.$api.discern.saveModel({
+        fileBase64: this.pdfBase,
+        tempName: 'test',
+        config: {
+          rectList: this.parseDataByPy(this.rectList2, 'rect'),
+          tableList: this.parseDataByPy(this.tableList, 'table')
+        }
+      })
+      if(data.statusCode === 200){
+        this.$message.success('模板保存成功')
+      }else{
+        this.$message.error('模板保存失败,失败原因'+ data.msg)
+      }
+    },
+    /**********************解析数据值***********************/
+    //数据解析, 后端转前端
+    pyParseFront(val, cate) {
+      const itemScale = cate === 'x' ? 1.433 : 0.71
+      const areaScale = cate === 'x' ? this.scaleWidth : this.scaleHeight
+      return val / areaScale / itemScale
+    },
+    //前端转后端
+    frontParsePy(val, cate) {
+      const itemScale = cate === 'x' ? 1.433 : 0.71
+      const areaScale = cate === 'x' ? this.scaleWidth : this.scaleHeight
+      return val * areaScale * itemScale
+    },
+    //解析
+    parseDataByPy(data, cate) {
+      let returnData = []
+      if(cate === 'rect'){
+        returnData = data.map(i=>{
+          return {
+            key: i.key,
+            isHasKey: i.isHasKey,
+            x: this.frontParsePy(i.x, 'x'),
+            y: this.frontParsePy(i.y, 'y'),
+            width: this.frontParsePy(i.width, 'x'),
+            height: this.frontParsePy(i.height, 'y')
+          }
+
+        })
+      }else if(cate === 'table'){
+        returnData = data.map(i=>{
+          const item = this.deepCopy(i)
+          item.columnList.forEach(i=>{
+            i.width = this.frontParsePy(i.width, 'x')
+            i.height = this.frontParsePy(i.height, 'y')
+            i.x = this.frontParsePy(i.x, 'x')
+            i.y = this.frontParsePy(i.y, 'y')
+          })
+          item.width = this.frontParsePy(item.width,'x')
+          item.height = this.frontParsePy(item.height,'y')
+          item.x = this.frontParsePy(item.x,'x')
+          item.y = this.frontParsePy(item.y,'y')
+          return item
+        })
+      }
+      return returnData
+    },
+    /**********************右侧圈选绑定内容事件***********************/
+    /**
+     * 点击右侧选项， 绑定左侧圈选选中
+     * @id, @cate, 点击的id，点击的类别 圈选方框，圈选列表
+     **/
+    rightItemClick(id,cate='rect') {
+      this.setToolBarUnactive();
+      this.selectId = id
+      if(cate === 'rect'){
+        this.curRectId = id
+        this.isAnchorActive = true
+        //this.isTableActive = false
+        this.reShowRect(0, 0, false, this.selectId, 'revise')
+        this.curTableId = -1
+        this._drawRect()
+      }else if(cate === 'table') {
+        this.curTableId = id
+        //this.isAnchorActive = false
+        this.isTableActive = true
+        this.curRectId = -1
+        this.reShowTable(0, 0, false, this.selectId, 'revise')
+        this._drawTable()
+      }
+    },
+    async submitOnly(i,index,cate) {
+      if(cate === 'rect'){
+        if(!i.key){
+          this.$message.error('请填写Key！')
+          return false
+        }
+        const params = {
+          key: i.key,
+          isHasKey: i.isHasKey,
+          x: this.frontParsePy(i.x, 'x'),
+          y: this.frontParsePy(i.y, 'y'),
+          width: this.frontParsePy(i.width, 'x'),
+          height: this.frontParsePy(i.height, 'y')
+        }
+        console.log(384, i)
+        //const res = await this.$api.discern.boxInfo(params)
+        const {data} = await this.$api.discern.testUploadExcute({sblist: [params]})
+        this.rectList2[index].text = data.reqData.dataList[0].text
+      }else if(cate === 'table'){
+        console.log(501, i)
+        //解析单位
+        const item = this.deepCopy(i)
+        item.columnList.forEach(i=>{
+          i.width = this.frontParsePy(i.width, 'x')
+          i.height = this.frontParsePy(i.height, 'y')
+          i.x = this.frontParsePy(i.x, 'x')
+          i.y = this.frontParsePy(i.y, 'y')
+        })
+        item.width = this.frontParsePy(item.width,'x')
+        item.height = this.frontParsePy(item.height,'y')
+        item.x = this.frontParsePy(item.x,'x')
+        item.y = this.frontParsePy(item.y,'y')
+        console.log('解析后',JSON.stringify(item))
+        const {data} = await this.$api.discern.testTableInfo({tableList: item, pdfBase: this.pdfBase})
+        this.tableList[index].text = data
+      }
+    },
+    colChange() {
+      console.log('onInput')
+      //this.reShowTable(0, 0, false, this.selectId, 'revise')
+    },
+    /**********************canvas事件***********************/
+    //删除当前选区
+    removeCurRect() {
+      console.log(136, this.selectId, this.isAnchorActive, this.isTableActive)
+      if(this.isAnchorActive) {//单个方块选区 目前用的是rectList2
+        const index = this.rectList2.findIndex(i=>i.id=== this.selectId)
+        this.rectList2.splice(index, 1)
+      } else if(this.isTableActive){ //列表选区
+        const index = this.tableList.findIndex(i=>i.id=== this.selectId)
+        this.tableList.splice(index, 1)
+      }
+      this.reShowRect(0, 0, false, this.selectId, 'revise')
+    },
+
     mark() {
       this.setAnchorFlag = true
       this.initDrawRect()
@@ -139,7 +673,7 @@ export default {
       this.imgHeight = 1122;
       this.imgBase64Code = 'https://timgsa.baidu.com/timg?image&quality=80&size=b9999_10000&sec=1576560618051&di=b89a65984c6a0e5c4c8a3de5aa8f0fcd&imgtype=0&src=http%3A%2F%2Fimage.biaobaiju.com%2Fuploads%2F20180803%2F20%2F1533300579-gnUBlQZPbt.jpg'
 
-      this.baseTarget = this.$refs.baseCanvas
+      this.baseTarget = this.$refs.operateCanvas
       this.wrapperTarget = this.$refs.canvasWrapper
 
       this.computeInitData();
@@ -266,7 +800,7 @@ export default {
       for (let key in obj) {
         if (obj.hasOwnProperty(key)) {
           if (obj[key] instanceof Object || obj[key] instanceof Array) {
-            result[key] = deepCopy(obj[key]);
+            result[key] = this.deepCopy(obj[key]);
           } else {
             result[key] = obj[key];
           }
@@ -307,9 +841,9 @@ export default {
 
     // 画布操作
     drawCanvas(moveX = 0, moveY = 0) {
-      //const [width, height] = [this.imgWidth * this.currentScaleVal, this.imgHeight * this.currentScaleVal]
-      const width = 500
-      const height = 500
+      const [width, height] = [this.imgWidth * this.currentScaleVal, this.imgHeight * this.currentScaleVal]
+      /*const width = 500
+      const height = 500*/
       this.movePoint.width = width
       this.movePoint.height = height
       this.movePoint.x = 0
@@ -442,6 +976,10 @@ export default {
       })
       if (selectList.length) {
         this.selectId = selectList[selectList.length - 1] && selectList[selectList.length - 1].id
+        //记录选中id
+        this.curRectId = this.selectId
+        this.curTableId = -1
+
         this.drawRectBorder(this.baseInstance, this.selectId)
         return true
       }
@@ -450,7 +988,9 @@ export default {
     drawRectWithColor(instance, x, y, width, height, id) {
       instance.clearRect(0, 0, this.movePoint.width, this.movePoint.height);
       this.initDrawRect();
-      (this.setAnchorFlag ? this.rectList1 : this.rectList2)[id] = { x, y, width, height, id }
+      //初始化，增加两个值，key, 是否包含key
+      const key = '', isHasKey = 0, text = '';
+      (this.setAnchorFlag ? this.rectList1 : this.rectList2)[id] = { x, y, width, height, id, key, isHasKey, text }
     },
     drawRectBorder(instance, id) {
       instance.clearRect(0, 0, this.movePoint.width, this.movePoint.height);
@@ -660,15 +1200,33 @@ export default {
       })
       if (selectList.length) {
         this.selectId = selectList[selectList.length - 1] && selectList[selectList.length - 1].id
+        //记录选中id
+        this.curTableId = this.selectId
+        this.curRectId = -1
+
         this.drawTableBorder(this.baseInstance, this.selectId)
         return true
       }
       return false
     },
+    //此方法只会在第一次创建表格的时候触发，其余时刻不会
     drawTableWithColor(instance, x, y, width, height, id) {
       instance.clearRect(0, 0, this.movePoint.width, this.movePoint.height);
       this.initDrawRect();
-      this.tableList[id] = { x, y, width, height, id }
+      //初始化，key, text,columnList,maxRows
+      const key = '', columnList = [], text = '', maxRows = 0;
+      //给columnList设置默认值
+      for (let i = 0; i < this.tableCol; i++) {
+        columnList.push({
+          width: 0,
+          height: 0,
+          y: 0,
+          key: '',
+          x: 0
+        })
+      }
+      this.tableList[id] = { x, y, width, height, id, key, columnList, text, maxRows }
+      console.log(1127, this.tableList[id])
     },
     drawTableBorder(instance, id) {
       instance.clearRect(0, 0, this.movePoint.width, this.movePoint.height);
@@ -893,11 +1451,114 @@ export default {
 
       this.drawTableBorder(this.baseInstance, id)
     },
+    /**********************测试方法，后期可以注释***********************/
+    testData(){
+      let testArr = [
+        {
+          "x": 34,
+          "y": 531,
+          "width": 529,
+          "height": 95,
+          "id": 0,
+          "columnList": [],
+          "centerLineList": [
+            0.1375761394664986,
+            0.2222222222222222,
+            0.34089477000630125,
+            0.47658055030455815,
+            0.6009241755933632,
+            0.6817895400126025,
+            0.7777777777777777,
+            0.868094938038227
+          ]
+        }
+      ]
+      /*testArr = [
+        {
+          x: 0,
+          y: 0,
+          width: 60,
+          height: 40,
+          id: 0,
+          columnList: [],
+          centerLineList: [0.5, 0.75]
+        }
+      ]*/
+      //testArr[0].columnList.length = testArr[0].centerLineList.length+1
+      testArr[0].centerLineList.unshift(0)
+      testArr[0].centerLineList.push(1)
+      let widthCale = 0
+      console.log(testArr[0])
+      testArr[0].centerLineList.forEach((i,index)=>{
+        widthCale = testArr[0].centerLineList[index+1] - i
+        if(widthCale<=1){
+          console.log(widthCale)
+          testArr[0].columnList.push({
+            width: testArr[0].width * widthCale,
+            height: testArr[0].height,
+            y: testArr[0].y
+          })
+        }
+      })
+      //计算出偏移量x的值, 计算方法为，当前点 加上前面宽的的和
+      testArr[0].columnList.forEach((i,index)=>{
+        if(index === 0){
+          i.x = testArr[0].x
+        }else{
+          let x = 0
+          for(let j=0;j<=index;j++){
+            x += testArr[0].columnList[j].width
+          }
+          i.x = x
+        }
+      })
+
+      console.log('end',testArr)
+      /*console.log('test', this.frontParsePy(76.88, 'x'))
+      return false*/
+      //解析单位
+      testArr[0].columnList.forEach(i=>{
+        i.width = this.frontParsePy(i.width, 'x')
+        i.height = this.frontParsePy(i.height, 'y')
+        i.x = this.frontParsePy(i.x, 'x')
+        i.y = this.frontParsePy(i.y, 'y')
+      })
+      testArr[0].width = this.frontParsePy(testArr[0].width,'x')
+      testArr[0].height = this.frontParsePy(testArr[0].height,'y')
+      testArr[0].x = this.frontParsePy(testArr[0].x,'x')
+      testArr[0].y = this.frontParsePy(testArr[0].y,'y')
+      console.log('解析后',JSON.stringify(testArr))
+
+    },
+    testCalc() {
+      this.testData()
+    },
+    loadTestTable() {
+      setTimeout(()=>{
+        //模拟框选列表
+        this.tableList = [{"x":126,"y":94,"width":60,"height":56,"id":0,"key":"","columnList":[],"text":"","maxRows":1,"centerLineList":[0.5]},{"x":351,"y":90,"width":67,"height":52,"id":1,"key":"","columnList":[],"text":"","maxRows":1,"centerLineList":[0.5]}]
+        this.reShowRect(0, 0, false, 0, 'revise')
+        //this.reShowRect(0, 0, false, 1, 'revise')
+
+        this.setToolBarUnactive();
+        this.isTableActive = true
+        //this.tableVisible = true
+        this._drawTable()
+
+      }, 1000)
+    }
   },
   mounted() {
     this.$nextTick(() => {
+      //初始化可以画画的canvas
       this.initDraw()
+      //加载初始化背景的canvas
+      this.loadPdfCanvas()
+      //接口解析pdf,然后在背景canvas画出辅助线选框
+      //this.detectPdf()
+      //this.loadTestTable()
     })
+    //this.testData()
   },
 }
 </script>
@@ -909,7 +1570,7 @@ $nav-left-bg: blue;
 
 
 .edit-anchor-zone {
-  width: 1000px;
+  width: 100%;
   .edit-toolbar {
     height: 60px;
     background-color: #565559;
@@ -936,12 +1597,12 @@ $nav-left-bg: blue;
     }
   }
   .edit-body {
-    height: 720px;
-    padding: 10px 0;
     box-sizing: border-box;
+    width: 100%;
+    display: flex;
     //background-color: $nav-left-bg;
-    position: relative;
-    overflow: hidden;
+    /*position: relative;
+    overflow: hidden;*/
     .init-page-tip {
       position: absolute;
       top: 40%;
@@ -955,16 +1616,38 @@ $nav-left-bg: blue;
       }
     }
     .canvas-wrapper {
-      width: 1000px;
-      height: 700px;
-      position: absolute;
-      top: 0;
-      left: 0;
-      .canvas {
+      position: relative;
+      canvas {
         position: absolute;
         top: 0;
         left: 0;
         border: solid 1px red;
+      }
+    }
+    .rect-panel{
+      border: solid 1px red;
+      box-sizing: border-box;
+      //padding: 20px;
+      padding: 20px 40px 20px 20px;
+      overflow-y: auto;
+      display: flex;
+      .rect-column{
+
+      }
+      .table-column{
+
+      }
+      .item{
+        padding: 10px;
+        box-shadow:#eeeeee 0 0 10px;//四周
+        width: 300px;
+      }
+      .item-active {
+        box-shadow: $theme 0 0 10px;//四周
+      }
+      .item-text{
+        overflow: auto;
+        border: solid 1px $theme;
       }
     }
   }

@@ -34,6 +34,17 @@ const discern = {
   testUploadExcute(params) {
     return axios.post(`${javaUrl}/test/uploadExcute`, params)
   },
+  //tableInfo
+  testTableInfo(params) {
+    return axios.post(`http://192.168.16.190:2233/tableInfo`, params)
+  },
+  /**********************模型保存***********************/
+  saveModel(params) {
+    return axios.post(`${javaUrl}/template/model/save`, params)
+  },
+  readModel(params) {
+    return axios.post(`${javaUrl}/template/model/read/result`, params)
+  },
 
 }
 export default discern

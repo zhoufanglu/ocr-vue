@@ -10,6 +10,7 @@ const ocr = () => import('@/views/ocr/index.vue')
 const demo = () => import('@/views/ocr/demo.vue')
 const ocrEdit = () => import('@/views/ocr/ocrEdit.vue')
 const ocrBackup = () => import('@/views/ocr/ocr-back-up.vue')
+const discernPdf = () => import('@/views/ocr/discernPdf.vue')//pdf识别
 
 
 Vue.use(VueRouter)
@@ -51,6 +52,14 @@ const constantRoutes = [
     path: '/demo',
     name: 'demo',
     component: demo,
+    meta: {
+      requireAuth: false // 在需要登录的路由的meta中添加响应的权限标识
+    }
+  },
+  {
+    path: '/discernPdf',
+    name: 'discernPdf',
+    component: discernPdf,
     meta: {
       requireAuth: false // 在需要登录的路由的meta中添加响应的权限标识
     }

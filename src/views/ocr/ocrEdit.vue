@@ -38,6 +38,20 @@
             <el-form-item label="key" required>
               <el-input v-model="i.key"></el-input>
             </el-form-item>
+            <!--辅助信息-->
+            <el-form-item label="x">
+              <span>{{i.x}}</span>
+            </el-form-item>
+            <el-form-item label="y">
+              <span>{{i.y}}</span>
+            </el-form-item>
+            <el-form-item label="宽度">
+              <span>{{i.width}}</span>
+            </el-form-item>
+            <el-form-item label="高度">
+              <span>{{i.height}}</span>
+            </el-form-item>
+            <!--辅助信息-->
             <el-form-item label="选中是否包含key">
               <el-select v-model="i.isHasKey">
                 <el-option label="包含key" :value="1"></el-option>
@@ -266,11 +280,17 @@ export default {
             })
           })
     },
-
+    //删除当前的选区
     removeCurRect() {
-      console.log(136, this.selectId)
-      const index = this.rectList1.findIndex(i=>i.id=== this.selectId)
-      this.rectList1.splice(index, 1)
+      console.log(136, this.selectId, this.isAnchorActive, this.isTableActive)
+      if(this.isAnchorActive) {//单个方块选区
+        const index = this.rectList1.findIndex(i=>i.id=== this.selectId)
+        this.rectList1.splice(index, 1)
+      } else if(this.isTableActive){ //列表选区
+        const index = this.tableList.findIndex(i=>i.id=== this.selectId)
+        this.tableList.splice(index, 1)
+        console.log(292, this.tableList)
+      }
       this.reShowRect(0, 0, false, this.selectId, 'revise')
     },
     mark() {
