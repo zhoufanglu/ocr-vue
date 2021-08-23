@@ -40,10 +40,10 @@ const discern = {
   },
   /**********************模型保存***********************/
   saveModel(params) {
-    return axios.post(`${javaUrl}/template/model/save`, params)
+    return axios.post(`${javaUrl}/template/model/saveModel`, params)
   },
   readModel(params) {
-    return axios.post(`${javaUrl}/template/model/read/result`, params)
+    return axios.post(`${javaUrl}/template/model/executeModel`, params)
   },
 
 }

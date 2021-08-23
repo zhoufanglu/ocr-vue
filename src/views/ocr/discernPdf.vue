@@ -97,7 +97,12 @@ export default {
   },
   methods: {
     async onSubmit(){
-      const {data} = await this.$api.discern.readModel({tempName: 'test'})
+      const {data} = await this.$api.discern.readModel(
+          {
+            tempName: 'test',
+            fileBase64: this.pdfBase
+          }
+      )
       console.log(data.reqData.fileContext.data.ret)
     },
     convertToBase64() {

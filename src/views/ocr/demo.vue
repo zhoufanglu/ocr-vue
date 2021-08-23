@@ -23,7 +23,7 @@
           <el-button @click="dragDraw">拖拽画布<i class="iconfont icon-OCR-drafting toolbar-icon" ></i></el-button>
         </el-tooltip>
       </span>
-      <span class="toolbar-icon-wrap" :class="{'icon_active': isZoomInActive}">
+<!--      <span class="toolbar-icon-wrap" :class="{'icon_active': isZoomInActive}">
         <el-tooltip class="item" effect="light" content="放大" placement="top">
           <el-button @click="zoomIn"> 放大<i class="iconfont icon-Zoomin toolbar-icon" ></i></el-button>
         </el-tooltip>
@@ -32,7 +32,7 @@
         <el-tooltip class="item" effect="light" content="缩小" placement="top">
           <el-button @click="zoomOut">缩小<i class="iconfont icon-Zoomout toolbar-icon" ></i></el-button>
         </el-tooltip>
-      </span>
+      </span>-->
       <span class="toolbar-icon-wrap" :class="{'icon_active': isAdaptDrawActive}">
         <el-tooltip class="item" effect="light" content="适应画布" placement="top">
           <el-button @click="adaptDraw">适应画布<i class="iconfont icon-OCR-autoadaptation toolbar-icon"></i></el-button>
@@ -264,6 +264,7 @@ export default {
     },
     rectList2: function (newVal, oldVal) {
       console.log('rectList2: ', newVal)
+      console.log('rectList2: ', JSON.stringify(newVal))
     },
     tableList: function (newVal, oldVal) {
       console.log('tableList: ', newVal)
@@ -521,6 +522,8 @@ export default {
       const {data} = await this.$api.discern.saveModel({
         fileBase64: this.pdfBase,
         tempName: 'test',
+        pdfWidth: this.pdfWidth,
+        pdfHeight: this.pdfHeight,
         config: {
           rectList: this.parseDataByPy(this.rectList2, 'rect'),
           tableList: this.parseDataByPy(this.tableList, 'table')
@@ -1532,6 +1535,8 @@ export default {
     },
     testCalc() {
       this.testData()
+      console.log(1565, this.frontParsePy(77, 'x'))
+
     },
     loadTestTable() {
       setTimeout(()=>{
