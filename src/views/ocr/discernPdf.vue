@@ -35,7 +35,7 @@
       </canvas>
       <div class="read-data">
         <div class="rect">
-          <h4>圈选识别</h4>
+          <h4>圈选识别结果</h4>
           <div v-for="i in rectList" class="row">
             <div>
               <label>key:</label>
@@ -48,7 +48,7 @@
           </div>
         </div>
         <div class="table">
-          <h4>表格识别</h4>
+          <h4>表格识别结果</h4>
           <div
               v-for="(table,index) in tableList"
           >
@@ -78,7 +78,7 @@ export default {
       pdfBase: null,
       options: [{name: 'test'}],
       formInline: {
-        tempVal: ''
+        tempVal: 'test'
       },
       readData: [],
       rectList: [],
@@ -86,16 +86,18 @@ export default {
     }
   },
   created() {
-    this.initData()
+    //this.initData()
   },
   mounted() {
-    setTimeout(()=>{
+    this.wrapperTarget = this.$refs.canvasWrapper
+    this.baseTarget = this.$refs.canvas1
+    /*setTimeout(()=>{
       this.wrapperTarget = this.$refs.canvasWrapper
       this.baseTarget = this.$refs.canvas1
       this.loadPdfCanvas()
-    }, 1000)
+    }, 1000)*/
   },
-  methods: {
+  methods:{
     async onSubmit(){
       const {data} = await this.$api.discern.readModel(
           {
@@ -103,7 +105,9 @@ export default {
             fileBase64: this.pdfBase
           }
       )
-      console.log(data.reqData.fileContext.data.ret)
+      console.log(107, data.reqData.fileContext.data.ret)
+      this.readData = data.reqData.fileContext.data.ret
+      this.initData()
     },
     convertToBase64() {
       this.wrapperTarget = this.$refs.canvasWrapper
@@ -159,11 +163,10 @@ export default {
       const that = this
       this.pdfDoc.getPage(num)
           .then((page) => {
-            if(num !== 1){ //只计算第一页
+            /*if(num !== 1){ //只计算第一页
               return false
-            }
+            }*/
             let canvas = document.getElementById('bg-canvas' + num)
-            console.log(117, canvas)
             let ctx = canvas.getContext('2d')
             let dpr = window.devicePixelRatio || 1
             let bsr = ctx.webkitBackingStorePixelRatio ||
@@ -180,9 +183,10 @@ export default {
             let defaultPdfHeight = viewport.height
 
             //初始化外面容器宽度大小，由于定位，已经脱离了文档流
-            this.wrapperTarget.style.width = `${defaultPdfWidth+10}px`
-            this.wrapperTarget.style.height = `${defaultPdfHeight+10}px`
-
+            //this.wrapperTarget.style.width = `${defaultPdfWidth+10}px`
+            //this.wrapperTarget.style.height = `${defaultPdfHeight+10}px`
+            //不改变大小
+            ratio = 1
             canvas.width = viewport.width * ratio
             canvas.height = viewport.height * ratio
             //存储Pdf原始大小
@@ -235,6 +239,7 @@ export default {
           })
     },
     initData() {
+/*
       this.readData =  [
         {
           "isHasKey": 0,
@@ -562,6 +567,7 @@ export default {
           "word": "0 CM"
         }
       ]
+*/
       this.rectList = this.readData.filter(i=> i.wordName.indexOf('#') === -1)
       let tableTemp = this.readData.filter(i=> i.wordName.indexOf('#') !== -1)
       let tableList = []
@@ -631,6 +637,19 @@ export default {
       console.log(948, columnList)
       console.log(923, this.readData)
       this.tableList = tableList
+      /**********************在pdf上标记出来***********************/
+      this.loadCanvasByPy()
+    },
+    loadCanvasByPy(){
+      const canvas = document.getElementById('bg-canvas1')
+      let ctx = canvas.getContext('2d')
+      this.readData.forEach(i=>{
+        ctx.strokeStyle = 'blue'
+        ctx.setLineDash([5,2])
+        //ctx.globalAlpha  = 0.5
+        ctx.strokeRect(i.location.left, i.location.top, i.location.width, i.location.height)
+        console.log('画成功了')
+      })
     }
   }
 }
@@ -645,12 +664,18 @@ export default {
   .pdf-wrapper{
     display: flex;
     .read-data{
+      margin-left: 10px;
       .rect{
         margin-bottom: 30px;
         display: flex;
         flex-direction: column;
+        border: solid 1px $theme;
+        padding: 20px;
         .row{
           display: flex;
+          padding: 6px;
+          margin: 10px;
+          border: dashed 1px red;
           label{
             font-weight: bolder;
             margin-right: 20px;
@@ -659,11 +684,15 @@ export default {
           }
         }
       }
+      .table{
+        border: solid 1px red;
+      }
       table{
+        padding: 20px;
         margin: 0 auto;
         border-collapse:collapse;
         td,th{
-          border: solid 1px red;
+          border: solid 1px $theme;
         }
       }
     }

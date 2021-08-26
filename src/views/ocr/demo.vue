@@ -109,10 +109,10 @@
                   <el-option label="不包含key" :value="0"></el-option>
                 </el-select>
               </el-form-item>
-              <el-form-item>
+<!--              <el-form-item>
                 <el-button type="primary" @click="submitOnly(i, index, 'rect')">识别选中区域</el-button>
                 <div :class="i.text?'item-text':''"> {{i.text}}</div>
-              </el-form-item>
+              </el-form-item>-->
             </el-form>
           </div>
         </div>
@@ -159,10 +159,10 @@
                   </span>
                 </div>
               </el-form-item>
-              <el-form-item>
+<!--              <el-form-item>
                 <el-button type="primary" @click="submitOnly(i, index, 'table')">识别选中区域</el-button>
                 <div :class="i.text?'item-text':''"> {{i.text}}</div>
-              </el-form-item>
+              </el-form-item>-->
             </el-form>
           </div>
         </div>
@@ -253,7 +253,7 @@ export default {
       tableCol: 2,
       color1: '#FF7782',
       color2: '#1E82FD',
-      color3: 'rgba(125,96,220,0.8)',
+      color3: 'rgba(62,3,132,0.8)',
       opacity: 0.3,
       lineWidth: 2,
     }
@@ -273,7 +273,7 @@ export default {
       //增加columnList
       this.tableList.forEach(i=>{
         //判断数据有无初始化过,没有 就增加centerLineListTemp属性，反之更新数值
-        if(false){
+        /*if(false){
           console.log('初始化，计算数值')
           //为分割线，增加首尾两条线,增加新的centerLineListTemp
           i.centerLineListTemp = [...i.centerLineList]
@@ -310,7 +310,7 @@ export default {
               col.x = x
             }
           })
-        }
+        }*/
       })
       //this.tableList = newVal
       //console.log(287, newVal)
@@ -319,6 +319,9 @@ export default {
       /*const findIndex = this.tableList.findIndex(i=>i.id === this.curTableId)
       let curTableItem = this.deepCopy(this.tableList[findIndex])*/
       console.log('当前方框的属性', curTableItem)
+      if(!curTableItem){
+        return false
+      }
       //增加centerLineListTemp属性，包含0 跟 1的线
       curTableItem.centerLineListTemp = [...curTableItem.centerLineList]
       curTableItem.centerLineListTemp.unshift(0)
@@ -440,7 +443,7 @@ export default {
             //初始化外面容器宽度大小，由于定位，已经脱离了文档流
             this.wrapperTarget.style.width = `${defaultPdfWidth+10}px`
             this.wrapperTarget.style.height = `${defaultPdfHeight+10}px`
-
+            console.log(446, ratio)
             canvas.width = viewport.width * ratio
             canvas.height = viewport.height * ratio
             //存储Pdf原始大小
@@ -524,11 +527,16 @@ export default {
         tempName: 'test',
         pdfWidth: this.pdfWidth,
         pdfHeight: this.pdfHeight,
-        config: {
+        /*config: {
           rectList: this.parseDataByPy(this.rectList2, 'rect'),
           tableList: this.parseDataByPy(this.tableList, 'table')
+        }*/
+        config: {
+          rectList: this.rectList2,
+          tableList: this.tableList
         }
       })
+      console.log(536, this.parseDataByPy(this.rectList2, 'rect'))
       if(data.statusCode === 200){
         this.$message.success('模板保存成功')
       }else{
@@ -1558,7 +1566,7 @@ export default {
       //初始化可以画画的canvas
       this.initDraw()
       //加载初始化背景的canvas
-      this.loadPdfCanvas()
+      //this.loadPdfCanvas()
       //接口解析pdf,然后在背景canvas画出辅助线选框
       //this.detectPdf()
       //this.loadTestTable()
