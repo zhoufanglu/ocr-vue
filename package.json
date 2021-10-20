@@ -31,6 +31,7 @@
     "pdfjs-dist": "^2.4.456",
     "qs": "^6.10.1",
     "sass-loader": "^8.0.2",
+    "vue-code-diff": "^1.2.0",
     "vue-template-compiler": "^2.6.11",
     "vuex-persistedstate": "^4.0.0-beta.3"
   }

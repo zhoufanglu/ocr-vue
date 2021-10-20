@@ -1,5 +1,6 @@
 <template>
   <div class="edit-anchor-zone">
+    <h1>制作模板</h1>
     <div class="panel">
       <el-button type="primary" size="mini" @click="$router.push('/discernPdf')">去识别Pdf</el-button>
       <input id="inputFile" type="file" @change="convertToBase64()" />
@@ -18,11 +19,11 @@
           <el-button  @click="drawTable">框选列表<i class="iconfont icon-OCR-table toolbar-icon"></i></el-button>
         </el-tooltip>
       </span>
-      <span class="toolbar-icon-wrap" :class="{'icon_active': isdrawActive}">
+<!--      <span class="toolbar-icon-wrap" :class="{'icon_active': isdrawActive}">
         <el-tooltip class="item" effect="light" content="拖拽画布" placement="top">
           <el-button @click="dragDraw">拖拽画布<i class="iconfont icon-OCR-drafting toolbar-icon" ></i></el-button>
         </el-tooltip>
-      </span>
+      </span>-->
 <!--      <span class="toolbar-icon-wrap" :class="{'icon_active': isZoomInActive}">
         <el-tooltip class="item" effect="light" content="放大" placement="top">
           <el-button @click="zoomIn"> 放大<i class="iconfont icon-Zoomin toolbar-icon" ></i></el-button>
@@ -33,16 +34,16 @@
           <el-button @click="zoomOut">缩小<i class="iconfont icon-Zoomout toolbar-icon" ></i></el-button>
         </el-tooltip>
       </span>-->
-      <span class="toolbar-icon-wrap" :class="{'icon_active': isAdaptDrawActive}">
+<!--      <span class="toolbar-icon-wrap" :class="{'icon_active': isAdaptDrawActive}">
         <el-tooltip class="item" effect="light" content="适应画布" placement="top">
           <el-button @click="adaptDraw">适应画布<i class="iconfont icon-OCR-autoadaptation toolbar-icon"></i></el-button>
         </el-tooltip>
-      </span>
-      <span class="toolbar-icon-wrap" :class="{'icon_active': isSetOriginActive}">
+      </span>-->
+<!--      <span class="toolbar-icon-wrap" :class="{'icon_active': isSetOriginActive}">
         <el-tooltip class="item" effect="light" content="原图" placement="top">
           <el-button @click="setOriginSize">原图<i class="iconfont icon-OCR-test toolbar-icon" ></i></el-button>
         </el-tooltip>
-      </span>
+      </span>-->
     </div>
     <div class="edit-body">
       <div v-if="isLoading" class="init-page-tip">
@@ -253,7 +254,7 @@ export default {
       tableCol: 2,
       color1: '#FF7782',
       color2: '#1E82FD',
-      color3: 'rgba(62,3,132,0.8)',
+      color3: 'rgba(62,3,132,0.5)',
       opacity: 0.3,
       lineWidth: 2,
     }
@@ -439,11 +440,13 @@ export default {
             //默认的pdf实际大小
             let defaultPdfWidth = viewport.width
             let defaultPdfHeight = viewport.height
+            //console.log('pdf宽高', defaultPdfWidth, defaultPdfHeight)
 
             //初始化外面容器宽度大小，由于定位，已经脱离了文档流
             this.wrapperTarget.style.width = `${defaultPdfWidth+10}px`
             this.wrapperTarget.style.height = `${defaultPdfHeight+10}px`
             console.log(446, ratio)
+            ratio = 1
             canvas.width = viewport.width * ratio
             canvas.height = viewport.height * ratio
             //存储Pdf原始大小
@@ -1642,7 +1645,7 @@ $nav-left-bg: blue;
       box-sizing: border-box;
       //padding: 20px;
       padding: 20px 40px 20px 20px;
-      overflow-y: auto;
+      //overflow-y: auto;
       display: flex;
       .rect-column{
 

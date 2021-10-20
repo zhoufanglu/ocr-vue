@@ -1,9 +1,12 @@
 <template>
   <div class="p-discern-pdf">
+    <h1>识别pdf</h1>
     <div class="operate-row">
-      <el-button type="primary" size="mini" @click="$router.push('/demo')">返回制作模板</el-button>
-
       <el-form :inline="true" :model="formInline" class="demo-form-inline">
+        <el-form-item>
+          <el-button type="primary" size="small" @click="$router.push('/demo')">返回制作模板</el-button>
+        </el-form-item>
+
         <el-form-item label="选择模板：">
           <el-select size="mini" v-model="formInline.tempVal" placeholder="请选择">
             <el-option
@@ -166,6 +169,7 @@ export default {
             /*if(num !== 1){ //只计算第一页
               return false
             }*/
+            const cssUnits = 96.0/72.0
             let canvas = document.getElementById('bg-canvas' + num)
             let ctx = canvas.getContext('2d')
             let dpr = window.devicePixelRatio || 1
@@ -221,6 +225,7 @@ export default {
 
             ctx.setTransform(ratio, 0, 0, ratio, 0, 0)
             let renderContext = {
+              //transform: [cssUnits, 0, 0, cssUnits, 0, 0],
               canvasContext: ctx,
               viewport: viewport
             }

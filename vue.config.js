@@ -37,7 +37,7 @@ module.exports = {
   // css相关配置
   css: {
     // 是否使用css分离插件 ExtractTextPlugin
-    extract: true,
+    extract: false,
     // 开启 CSS source maps?
     sourceMap: true,
     // css预设器配置项
@@ -54,7 +54,7 @@ module.exports = {
   devServer: {
     port: 8080,
     //host: "0.0.0.0",
-    public: "192.168.5.148:8080",
+    public: "192.168.5.67:8080",
     https: false,
     // 自动启动浏览器
     open: false,
